@@ -42,7 +42,7 @@
   <button
     type="button"
     onclick={() => (open = !open)}
-    class="text-[11.5px] font-mono text-fleet-muted bg-[#1a2030] border border-fleet-border-strong rounded-lg px-2.5 py-1 cursor-pointer hover:text-fleet-text"
+    class="text-[11.5px] font-mono text-fleet-muted bg-fleet-chip border border-fleet-border-strong rounded-lg px-2.5 py-1 cursor-pointer hover:text-fleet-text"
     aria-haspopup="listbox"
     aria-expanded={open}
     data-testid={`${testid}-pill`}

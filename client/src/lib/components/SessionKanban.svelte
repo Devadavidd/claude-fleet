@@ -68,7 +68,7 @@
             <button
               type="button"
               onclick={() => { openTask = task; }}
-              class="text-left bg-[#131720] border border-fleet-border-strong rounded-lg px-2.5 py-2 cursor-pointer"
+              class="text-left bg-fleet-panel-deep border border-fleet-border-strong rounded-lg px-2.5 py-2 cursor-pointer"
               data-testid="kanban-task-card"
             >
               <div class="text-[12.5px] text-fleet-text leading-snug">{task.subject || `(task ${task.id})`}</div>

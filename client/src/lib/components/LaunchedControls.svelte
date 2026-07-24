@@ -46,13 +46,13 @@
   <div class="flex gap-1.5">
     <button
       type="button" disabled={busy} onclick={stop}
-      class="text-[11px] bg-fleet-warn/10 border border-[#4a3f18] text-[#d6b566] rounded-lg px-2.5 py-1 cursor-pointer disabled:opacity-60"
+      class="text-[11px] bg-fleet-warn/10 border border-fleet-warn-border text-fleet-warn-text rounded-lg px-2.5 py-1 cursor-pointer disabled:opacity-60"
       data-testid="launched-stop"
     >⏹ Stop</button>
     {#if steerable}
       <button
         type="button" disabled={busy} onclick={finish}
-        class="text-[11px] bg-[#1a2030] border border-fleet-border-strong text-fleet-muted rounded-lg px-2.5 py-1 cursor-pointer disabled:opacity-60"
+        class="text-[11px] bg-fleet-chip border border-fleet-border-strong text-fleet-muted rounded-lg px-2.5 py-1 cursor-pointer disabled:opacity-60"
         data-testid="launched-finish"
       >✓ Finish</button>
     {/if}

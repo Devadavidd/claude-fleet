@@ -5,6 +5,7 @@
 <script lang="ts">
   import { router, navigate } from '../router.svelte.js';
   import { unlockAudio } from '../audio.js';
+  import { readThemePref, resolveTheme, setThemePref } from '../theme.svelte.js';
 
   interface Props {
     title: string;
@@ -12,6 +13,17 @@
   }
 
   const { title, launch }: Props = $props();
+
+  // Concrete theme currently shown ('dark' | 'light'). Seeded from the stored
+  // pref resolved against the OS setting; the toggle flips to the opposite.
+  let theme = $state(resolveTheme(readThemePref()));
+  const isLight = $derived(theme === 'light');
+
+  function toggleTheme(): void {
+    const next = theme === 'light' ? 'dark' : 'light';
+    theme = next;
+    setThemePref(next); // writes localStorage + <html data-theme>
+  }
 
   function readAlertPref(): boolean {
     return typeof localStorage !== 'undefined' && localStorage.getItem('fleet-alerts') === 'on';
@@ -56,8 +68,24 @@
     <div class="flex items-center gap-2 bg-fleet-panel border border-fleet-border-strong rounded-lg px-3 py-1.5 w-[230px] text-fleet-dim">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.4"/><path d="m11 11 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       <span class="text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis">Search sessions</span>
-      <span class="ml-auto text-[10.5px] font-mono bg-[#1b212c] border border-[#2a3140] rounded px-1">⌘K</span>
+      <span class="ml-auto text-[10.5px] font-mono bg-fleet-panel-deep border border-fleet-border-strong rounded px-1">⌘K</span>
     </div>
+    <button
+      type="button"
+      onclick={toggleTheme}
+      title={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
+      aria-label={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
+      aria-pressed={isLight}
+      class="w-9 h-9 rounded-lg border border-fleet-border-strong text-fleet-dim bg-fleet-panel flex items-center justify-center flex-none cursor-pointer hover:text-fleet-text"
+    >
+      {#if isLight}
+        <!-- Sun: currently light, click to go dark -->
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3.1" stroke="currentColor" stroke-width="1.3"/><path d="M8 1.4v1.7M8 12.9v1.7M14.6 8h-1.7M3.1 8H1.4M12.7 3.3l-1.2 1.2M4.5 11.5l-1.2 1.2M12.7 12.7l-1.2-1.2M4.5 4.5 3.3 3.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      {:else}
+        <!-- Moon: currently dark, click to go light -->
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.2 9.6A5.4 5.4 0 0 1 6.4 2.8a5.4 5.4 0 1 0 6.8 6.8Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+      {/if}
+    </button>
     <button
       type="button"
       onclick={toggleBell}

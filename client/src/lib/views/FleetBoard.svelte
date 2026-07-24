@@ -128,7 +128,7 @@
           <button
             type="button"
             onclick={() => void clearIdle()}
-            class={`text-[10.5px] rounded-md px-1.5 py-0.5 cursor-pointer border ${clearArmed ? 'text-fleet-warn border-[#4a3f18] bg-fleet-warn/10 font-semibold' : 'text-fleet-dim border-fleet-border-strong hover:text-fleet-text'}`}
+            class={`text-[10.5px] rounded-md px-1.5 py-0.5 cursor-pointer border ${clearArmed ? 'text-fleet-warn border-fleet-warn-border bg-fleet-warn/10 font-semibold' : 'text-fleet-dim border-fleet-border-strong hover:text-fleet-text'}`}
             title="Hide every idle card (transcripts stay on disk)"
             data-testid="clear-idle"
           >{clearArmed ? 'Sure? Click again' : 'Clear'}</button>

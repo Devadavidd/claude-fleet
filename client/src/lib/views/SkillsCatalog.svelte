@@ -124,7 +124,7 @@
       <div class="min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
           <span class="text-lg font-bold tracking-tight">{catalog.kit.name}</span>
-          <span class="text-[11px] font-mono text-fleet-accent border border-[#33346a] rounded-full px-2 py-0.5">{catalog.kit.version}</span>
+          <span class="text-[11px] font-mono text-fleet-accent border border-fleet-accent-border rounded-full px-2 py-0.5">{catalog.kit.version}</span>
         </div>
         <div class="text-[12.5px] text-fleet-muted mt-1">Powers every session in this workspace — skills, agents, workflow &amp; guardrails.</div>
       </div>

@@ -81,7 +81,7 @@
     {/if}
     <span class="text-xs font-medium text-fleet-text">{statusLabel}</span>
     {#if card.launched}
-      <span class="ml-auto text-[10px] font-mono text-fleet-accent border border-[#33346a] rounded-full px-1.5">
+      <span class="ml-auto text-[10px] font-mono text-fleet-accent border border-fleet-accent-border rounded-full px-1.5">
         {card.steerable ? 'steerable' : 'launched'}
       </span>
     {/if}

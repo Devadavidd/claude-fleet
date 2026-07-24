@@ -83,7 +83,7 @@
               {/if}
               {#each group.agents as agent (agent.agentId)}
                 <div
-                  class="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-3 bg-[#131720] border-l-2 border-fleet-accent rounded-md px-2.5 py-1.5"
+                  class="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-3 bg-fleet-panel-deep border-l-2 border-fleet-accent rounded-md px-2.5 py-1.5"
                   data-testid="workflow-agent-row"
                 >
                   <span class="flex items-center gap-1.5 min-w-0">

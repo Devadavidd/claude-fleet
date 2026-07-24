@@ -27,7 +27,7 @@
 
 {#if rows.length}
   <div
-    class="border border-[#4a3f18] bg-gradient-to-b from-fleet-warn/[0.09] to-fleet-warn/[0.03] rounded-2xl px-4 py-3.5"
+    class="border border-fleet-warn-border bg-gradient-to-b from-fleet-warn/[0.09] to-fleet-warn/[0.03] rounded-2xl px-4 py-3.5"
     data-testid="needs-you-strip"
   >
     <div class="flex items-center gap-2 mb-2.5">

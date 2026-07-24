@@ -57,7 +57,7 @@
           <button
             type="button"
             onclick={(e) => openAgent(card.sessionId, agent.agentId, e)}
-            class="flex items-center gap-2 bg-[#131720] border-l-2 border-fleet-accent rounded-md px-2.5 py-1.5 text-left cursor-pointer"
+            class="flex items-center gap-2 bg-fleet-panel-deep border-l-2 border-fleet-accent rounded-md px-2.5 py-1.5 text-left cursor-pointer"
             data-testid="agents-fleet-row"
           >
             <span class={`w-1.5 h-1.5 rounded-full flex-none ${AGENT_DOT_CLASS[agent.status]}`}></span>

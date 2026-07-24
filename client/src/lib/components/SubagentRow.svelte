@@ -31,7 +31,7 @@
 </script>
 
 <div
-  class="flex items-center gap-1.5 bg-[#131720] border-l-2 border-fleet-accent rounded-md px-2 py-1 min-w-0 cursor-pointer"
+  class="flex items-center gap-1.5 bg-fleet-panel-deep border-l-2 border-fleet-accent rounded-md px-2 py-1 min-w-0 cursor-pointer"
   onclick={open}
   onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') open(e); }}
   role="button"
