@@ -1,0 +1,9 @@
+{"type": "custom-title", "customTitle": "Fixture Session Title", "sessionId": "fixture-session"}
+{"type": "queue-operation", "operation": "enqueue", "timestamp": "2026-07-21T10:00:00.000Z", "sessionId": "fixture-session", "content": "first user prompt"}
+{"type": "user", "isSidechain": false, "timestamp": "2026-07-21T10:00:01.000Z", "message": {"role": "user", "content": "<command-message>demo</command-message> first user prompt text"}, "uuid": "u1"}
+{"type": "assistant", "isSidechain": false, "timestamp": "2026-07-21T10:00:05.000Z", "message": {"role": "assistant", "content": [{"type": "text", "text": "working on it"}, {"type": "tool_use", "id": "toolu_1", "name": "Edit", "input": {"file_path": "/tmp/example.js", "old_string": "a", "new_string": "b"}}]}, "uuid": "a1"}
+{"type": "user", "isSidechain": false, "timestamp": "2026-07-21T10:00:06.000Z", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_1", "content": "ok", "is_error": false}]}, "uuid": "u2"}
+{"type": "assistant", "isSidechain": false, "timestamp": "2026-07-21T10:00:08.000Z", "message": {"role": "assistant", "content": [{"type": "text", "text": "done, over to you"}]}, "uuid": "a2"}
+{"type": "attachment", "timestamp": "2026-07-21T10:00:09.000Z", "attachment": {"type": "hook_success", "hookName": "Stop"}, "uuid": "at1"}
+this line is not json {{{
+{"noType": true}

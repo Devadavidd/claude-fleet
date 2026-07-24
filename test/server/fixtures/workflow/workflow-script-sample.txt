@@ -1,0 +1,18 @@
+// Sanitized fixture mirroring a real workflow script's shape: a meta header with
+// phases, a parallel() of two same-agentType researchers, and one general-purpose
+// author agent whose label is a backtick string (like real dynamic labels).
+export const meta = {
+  name: 'author-test-plan',
+  description: 'Test workflow: research then author',
+  phases: [
+    { title: 'Research', detail: '2 parallel researchers' },
+    { title: 'Author', detail: 'write the doc' },
+  ],
+}
+
+const S = { type: 'object' }
+const results = await parallel([
+  () => agent(`research topic A`, { agentType: 'researcher', label: 'topic-a', phase: 'Research', schema: S }),
+  () => agent(`research topic B`, { agentType: 'researcher', label: 'topic-b', phase: 'Research', schema: S }),
+])
+const out = await agent(`write it`, { agentType: 'general-purpose', label: `write-doc.md`, phase: 'Author' })

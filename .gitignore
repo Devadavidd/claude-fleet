@@ -1,0 +1,17 @@
+node_modules/
+.DS_Store
+*.log
+dist/
+.env
+.env.*
+
+# Licensed third-party skill bundle (AgentKit terms forbid redistribution) — never publish
+cf-plugin/
+cf-plugin.staging*/
+cf-plugin.old/
+/cf-plugin
+# Internal working artifacts (not part of the public repo)
+plans/
+docs/journals/
+docs/wiki/
+docs/design/
