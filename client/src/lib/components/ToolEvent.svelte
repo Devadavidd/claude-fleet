@@ -37,7 +37,7 @@
 </script>
 
 <div
-  class={`rounded-lg border overflow-hidden mb-1.5 ${isError ? 'border-[#5c2836]' : 'border-fleet-border'} bg-[#0f131a]`}
+  class={`rounded-lg border overflow-hidden mb-1.5 ${isError ? 'border-fleet-danger-border' : 'border-fleet-border'} bg-fleet-panel-deep`}
   data-testid="tool-event"
   data-tool-name={name}
 >

@@ -219,7 +219,7 @@
           <span class="text-[12.5px] text-fleet-muted">Run as a workflow (multi-agent orchestration)</span>
         </label>
 
-        <div class="flex gap-2 bg-fleet-warn/10 border border-[#4a3f18] rounded-lg px-3 py-2.5 text-[11.5px] text-[#d6b566] leading-relaxed">
+        <div class="flex gap-2 bg-fleet-warn/10 border border-fleet-warn-border rounded-lg px-3 py-2.5 text-[11.5px] text-fleet-warn-text leading-relaxed">
           <span class="flex-none">⚠</span>
           <span>Runs an auto-approving agent that can edit and execute anything under the chosen directory.</span>
         </div>

@@ -45,7 +45,7 @@
   });
 </script>
 
-<div class="border border-fleet-border rounded-2xl bg-[#0f131a] p-5" data-testid="progress-rollup">
+<div class="border border-fleet-border rounded-2xl bg-fleet-panel-deep p-5" data-testid="progress-rollup">
   {#if isEmpty}
     <div class="text-fleet-faint text-xs py-4 text-center">No plans or live tasks yet.</div>
   {:else}
@@ -56,7 +56,7 @@
             <span class="text-[12.5px] text-fleet-text font-medium">{bar.label}</span>
             <span class="text-xs font-mono text-fleet-muted">{bar.done}/{bar.total}</span>
           </div>
-          <div class="h-2 bg-[#0b0e14] border border-fleet-border rounded-md overflow-hidden">
+          <div class="h-2 bg-fleet-panel-deep border border-fleet-border rounded-md overflow-hidden">
             <div class="h-full rounded-md" style={`background:${bar.color}; width:${pct(bar.done, bar.total)}%`}></div>
           </div>
           <div class="text-[11px] text-fleet-faint mt-1.5">{pct(bar.done, bar.total)}% complete</div>

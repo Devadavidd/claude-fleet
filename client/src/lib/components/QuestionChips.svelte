@@ -55,7 +55,7 @@
 </script>
 
 {#if pending}
-  <div class="bg-fleet-warn/[0.07] border border-[#4a3f18] rounded-lg px-2.5 py-2 mb-2.5" data-testid="question-chips">
+  <div class="bg-fleet-warn/[0.07] border border-fleet-warn-border rounded-lg px-2.5 py-2 mb-2.5" data-testid="question-chips">
     <div class="text-[11px] font-semibold text-fleet-dim mb-1">
       {canAnswer ? '👤 Answer it below' : '👤 Lead is waiting for your answer'}
     </div>
@@ -75,14 +75,14 @@
               {@const on = q.multiSelect && (picked[i] ?? []).includes(label)}
               <button
                 type="button"
-                class={`text-[11.5px] border rounded-full px-2.5 py-0.5 cursor-pointer ${on ? 'bg-fleet-accent/25 border-fleet-accent text-fleet-text' : 'bg-[#1a2030] border-[#33346a] text-fleet-accent'}`}
+                class={`text-[11.5px] border rounded-full px-2.5 py-0.5 cursor-pointer ${on ? 'bg-fleet-accent/25 border-fleet-accent text-fleet-text' : 'bg-fleet-chip border-fleet-accent-border text-fleet-accent'}`}
                 aria-pressed={q.multiSelect ? on : undefined}
                 onclick={(e) => onChipClick(i, q.multiSelect, label, e)}
               >
                 {label}
               </button>
             {:else}
-              <span class="text-[11.5px] bg-[#1a2030] border border-[#33346a] text-fleet-accent rounded-full px-2.5 py-0.5">
+              <span class="text-[11.5px] bg-fleet-chip border border-fleet-accent-border text-fleet-accent rounded-full px-2.5 py-0.5">
                 {label}
               </span>
             {/if}

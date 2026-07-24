@@ -48,7 +48,7 @@
           <div class="flex items-center gap-1.5 mt-2 flex-wrap">
             <span class="text-[10.5px] text-fleet-muted border border-fleet-border rounded-full px-2 py-0.5">{skill.cat}</span>
             {#if skill.maturity}
-              <span class="text-[10px] font-mono text-fleet-warn border border-[#4a3f18] rounded-full px-2 py-0.5">{skill.maturity}</span>
+              <span class="text-[10px] font-mono text-fleet-warn border border-fleet-warn-border rounded-full px-2 py-0.5">{skill.maturity}</span>
             {/if}
           </div>
         </div>
@@ -92,7 +92,7 @@
           type="button"
           data-testid="skill-remove"
           onclick={() => onRemove(skill.name)}
-          class="mt-auto text-[12px] text-fleet-warn border border-[#4a3f18] rounded-lg px-3 py-2 cursor-pointer hover:bg-fleet-bg self-start"
+          class="mt-auto text-[12px] text-fleet-warn border border-fleet-warn-border rounded-lg px-3 py-2 cursor-pointer hover:bg-fleet-bg self-start"
         >
           Remove from bundle
         </button>

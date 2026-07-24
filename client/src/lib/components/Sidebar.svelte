@@ -80,7 +80,7 @@
       <div class="flex justify-between text-[11px] text-fleet-dim font-mono">
         <span>{fleetStore.sessions.size} active</span><span>127.0.0.1:4600</span>
       </div>
-      <div class="flex items-center gap-1.5 mt-2 pt-2 border-t border-[#1a2029]">
+      <div class="flex items-center gap-1.5 mt-2 pt-2 border-t border-fleet-border">
         <span class="w-1.5 h-1.5 rounded-sm bg-fleet-accent flex-none"></span>
         <span class="text-[11px] text-fleet-muted">Claude Engineer</span>
       </div>

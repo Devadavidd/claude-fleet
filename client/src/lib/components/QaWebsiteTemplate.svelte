@@ -34,7 +34,7 @@
   }
 </script>
 
-<div class="flex items-center gap-2 bg-[#131720] border border-fleet-border rounded-lg px-2.5 py-2" data-testid="qa-website-template">
+<div class="flex items-center gap-2 bg-fleet-panel-deep border border-fleet-border rounded-lg px-2.5 py-2" data-testid="qa-website-template">
   <span class="text-[11px] text-fleet-dim flex-none">QA website preset</span>
   <input
     type="text"
@@ -46,7 +46,7 @@
   <button
     type="button"
     onclick={apply}
-    class="text-[11px] text-fleet-accent border border-[#33346a] rounded-full px-2.5 py-0.5 cursor-pointer flex-none"
+    class="text-[11px] text-fleet-accent border border-fleet-accent-border rounded-full px-2.5 py-0.5 cursor-pointer flex-none"
     data-testid="qa-website-apply"
   >
     Use template

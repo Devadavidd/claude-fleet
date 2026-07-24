@@ -134,7 +134,7 @@
       {#if attachments.length}
         <ul class="m-0 p-0 list-none flex flex-wrap gap-1.5" data-testid="composer-attachment-list">
           {#each attachments as f, i (uploadNameFor(f) + i)}
-            <li class="flex items-center gap-1.5 text-[11px] text-fleet-muted font-mono bg-[#1a2030] border border-fleet-border-strong rounded-full px-2 py-0.5">
+            <li class="flex items-center gap-1.5 text-[11px] text-fleet-muted font-mono bg-fleet-chip border border-fleet-border-strong rounded-full px-2 py-0.5">
               <span class="truncate max-w-[220px]">{uploadNameFor(f)}</span>
               <button type="button" class="text-fleet-dim cursor-pointer" aria-label={`Remove ${uploadNameFor(f)}`} onclick={() => (attachments = attachments.filter((_, idx) => idx !== i))}>✕</button>
             </li>
@@ -184,7 +184,7 @@
         {#if card.launched}
           <button
             type="button" disabled={busy} onclick={() => void post(`${base}/kill`)}
-            class="text-[11.5px] text-[#d6b566] border border-[#4a3f18] bg-fleet-warn/10 rounded-lg px-2.5 py-1 cursor-pointer disabled:opacity-60"
+            class="text-[11.5px] text-fleet-warn-text border border-fleet-warn-border bg-fleet-warn/10 rounded-lg px-2.5 py-1 cursor-pointer disabled:opacity-60"
             data-testid="composer-stop"
           >⏹ Stop</button>
         {/if}

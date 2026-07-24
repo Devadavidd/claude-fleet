@@ -65,7 +65,7 @@
   <div class="flex flex-wrap items-center gap-1.5">
     {#each folders as f, i (f)}
       <span
-        class="flex items-center gap-1.5 text-[11.5px] font-mono bg-[#1a2030] border border-fleet-border-strong rounded-lg px-2.5 py-1 text-fleet-text"
+        class="flex items-center gap-1.5 text-[11.5px] font-mono bg-fleet-chip border border-fleet-border-strong rounded-lg px-2.5 py-1 text-fleet-text"
         title={f}
         data-testid={`working-folder-chip-${i}`}
       >

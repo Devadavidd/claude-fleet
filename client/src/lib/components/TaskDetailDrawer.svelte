@@ -112,7 +112,7 @@
           <div class="text-[11px] font-semibold text-fleet-faint uppercase tracking-wide mb-1.5">Blocked by</div>
           <div class="flex flex-wrap gap-1.5">
             {#each task.blockedBy as id (id)}
-              <span class="text-[11.5px] bg-[#1a2030] border border-fleet-border-strong rounded-full px-2.5 py-0.5 text-fleet-muted">#{id}</span>
+              <span class="text-[11.5px] bg-fleet-chip border border-fleet-border-strong rounded-full px-2.5 py-0.5 text-fleet-muted">#{id}</span>
             {/each}
           </div>
         </div>

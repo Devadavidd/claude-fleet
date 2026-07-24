@@ -83,12 +83,12 @@
          marked completed) — NOT the raw phase-file checkbox %, which stays 0 for
          completed plans whose authoring todos were never ticked. -->
     {@const planPct = planDone ? 100 : plan.phaseTotal ? Math.round((plan.phaseDone / plan.phaseTotal) * 100) : plan.progress.pct}
-    <div class="border border-fleet-border rounded-xl bg-[#0f131a] overflow-hidden" data-testid="task-tree-plan">
+    <div class="border border-fleet-border rounded-xl bg-fleet-panel-deep overflow-hidden" data-testid="task-tree-plan">
       <button type="button" onclick={() => toggle(planKey)} class="flex items-center gap-2.5 w-full text-left px-3.5 py-2.5 cursor-pointer">
         <span class="text-fleet-dim text-[10px] w-2 flex-none">{planOpen ? '▾' : '▸'}</span>
         <span class={`w-1.5 h-1.5 rounded-sm flex-none ${DOT_CLASS[statusColumn(plan.status)]}`}></span>
         <span class="text-[13.5px] font-semibold text-fleet-text flex-1 min-w-0 truncate">{plan.title || plan.slug}</span>
-        <span class="w-[70px] h-1.5 bg-[#0b0e14] border border-fleet-border rounded overflow-hidden flex-none">
+        <span class="w-[70px] h-1.5 bg-fleet-panel-deep border border-fleet-border rounded overflow-hidden flex-none">
           <span class="block h-full bg-fleet-success" style={`width:${planPct}%`}></span>
         </span>
         <span class="text-[11px] text-fleet-muted font-mono flex-none">{plan.phaseDone}/{plan.phaseTotal} · {taskCount(plan)} tasks</span>
@@ -144,7 +144,7 @@
 
   {#if adhoc.length}
     {@const adhocOpen = expandedKeys.has('adhoc')}
-    <div class="border border-fleet-border rounded-xl bg-[#0f131a] overflow-hidden" data-testid="task-tree-adhoc">
+    <div class="border border-fleet-border rounded-xl bg-fleet-panel-deep overflow-hidden" data-testid="task-tree-adhoc">
       <button type="button" onclick={() => toggle('adhoc')} class="flex items-center gap-2.5 w-full text-left px-3.5 py-2.5 cursor-pointer">
         <span class="text-fleet-dim text-[10px] w-2 flex-none">{adhocOpen ? '▾' : '▸'}</span>
         <span class="text-[13.5px] font-semibold text-fleet-text flex-1 truncate">Ad-hoc / unassigned</span>

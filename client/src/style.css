@@ -9,17 +9,88 @@
   --color-fleet-bg: #0b0d12;        /* app background */
   --color-fleet-surface: #0e1117;   /* sidebar / raised surfaces */
   --color-fleet-panel: #12151c;     /* cards, widgets */
+  --color-fleet-panel-deep: #0f131a; /* recessed surfaces: section wrappers, progress tracks */
   --color-fleet-border: #1c222d;    /* primary borders */
   --color-fleet-border-strong: #242b38;
   --color-fleet-accent: #7d7bff;    /* primary accent (purple) */
   --color-fleet-accent-deep: #5b58e0;
+  --color-fleet-accent-border: #33346a; /* subtle purple border on accent chips */
   --color-fleet-success: #34d399;
+  --color-fleet-success-border: #245c46; /* success chip border */
   --color-fleet-warn: #fbbf24;
+  --color-fleet-warn-border: #4a3f18;   /* warning chip border */
+  --color-fleet-warn-text: #d6b566;     /* warning chip text */
+  --color-fleet-danger-border: #5c2836; /* error chip border */
+  --color-fleet-chip: #1a2030;          /* neutral pill/chip background */
   --color-fleet-text: #e7eaf0;      /* primary text */
   --color-fleet-muted: #9aa4b4;     /* secondary text */
   --color-fleet-muted-2: #8b94a4;
   --color-fleet-dim: #667081;       /* tertiary text */
   --color-fleet-faint: #556072;     /* section labels */
+}
+
+/* Light theme — activated by <html data-theme="light"> (set from AppHeader's
+   sun/moon toggle, persisted in localStorage 'fleet-theme'). Every Tailwind
+   `*-fleet-*` utility compiles to var(--color-fleet-*), so overriding the vars
+   here re-skins the whole app without touching a single component. Dark stays
+   the default (no attribute → @theme values above apply). */
+:root[data-theme="light"] {
+  --color-fleet-bg: #f5f6f8;        /* app background */
+  --color-fleet-surface: #ffffff;   /* sidebar / raised surfaces */
+  --color-fleet-panel: #ffffff;     /* cards, widgets */
+  --color-fleet-panel-deep: #eceef2; /* recessed surfaces sit slightly below the app bg */
+  --color-fleet-border: #e2e5ea;    /* primary borders */
+  --color-fleet-border-strong: #d1d6df;
+  --color-fleet-accent: #5b58e0;    /* primary accent (deeper purple for contrast on light) */
+  --color-fleet-accent-deep: #4a47c9;
+  --color-fleet-accent-border: #c7c6f0;
+  --color-fleet-success: #059669;
+  --color-fleet-success-border: #a7d9c3;
+  --color-fleet-warn: #b45309;
+  --color-fleet-warn-border: #e6cf9a;
+  --color-fleet-warn-text: #92600c;
+  --color-fleet-danger-border: #e5b4bc;
+  --color-fleet-chip: #eceef2;
+  --color-fleet-text: #1a1e27;      /* primary text */
+  --color-fleet-muted: #4b5563;     /* secondary text */
+  --color-fleet-muted-2: #5b6472;
+  --color-fleet-dim: #6b7482;       /* tertiary text */
+  --color-fleet-faint: #8b94a4;     /* section labels */
+}
+
+/* Follow the OS preference before the user ever clicks the toggle. Once they
+   pick a theme the explicit data-theme attribute (set by JS) wins over this. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --color-fleet-bg: #f5f6f8;
+    --color-fleet-surface: #ffffff;
+    --color-fleet-panel: #ffffff;
+    --color-fleet-panel-deep: #eceef2;
+    --color-fleet-border: #e2e5ea;
+    --color-fleet-border-strong: #d1d6df;
+    --color-fleet-accent: #5b58e0;
+    --color-fleet-accent-deep: #4a47c9;
+    --color-fleet-accent-border: #c7c6f0;
+    --color-fleet-success: #059669;
+    --color-fleet-success-border: #a7d9c3;
+    --color-fleet-warn: #b45309;
+    --color-fleet-warn-border: #e6cf9a;
+    --color-fleet-warn-text: #92600c;
+    --color-fleet-danger-border: #e5b4bc;
+    --color-fleet-chip: #eceef2;
+    --color-fleet-text: #1a1e27;
+    --color-fleet-muted: #4b5563;
+    --color-fleet-muted-2: #5b6472;
+    --color-fleet-dim: #6b7482;
+    --color-fleet-faint: #8b94a4;
+  }
+}
+
+/* Native form controls / scrollbars pick up the right base colors per theme. */
+:root { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) { color-scheme: light; }
 }
 
 /* Graphics-heavy surfaces (ANSI terminal, SVG charts, heatmap) keep plain CSS —

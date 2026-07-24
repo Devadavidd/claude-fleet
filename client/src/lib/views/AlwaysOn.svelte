@@ -119,10 +119,10 @@
           </div>
           <div class="flex gap-2 mt-1">
             {#if job.status === 'running'}
-              <button type="button" onclick={() => stopOrResume(job.id, 'stop')} disabled={busyIds.has(job.id)} class="text-[11.5px] text-fleet-warn border border-[#5c2836] rounded-full px-2.5 py-0.5 cursor-pointer disabled:opacity-50" data-testid="loop-job-stop">Stop</button>
+              <button type="button" onclick={() => stopOrResume(job.id, 'stop')} disabled={busyIds.has(job.id)} class="text-[11.5px] text-fleet-warn border border-fleet-danger-border rounded-full px-2.5 py-0.5 cursor-pointer disabled:opacity-50" data-testid="loop-job-stop">Stop</button>
             {/if}
             {#if job.status === 'paused' || job.status === 'interrupted'}
-              <button type="button" onclick={() => stopOrResume(job.id, 'resume')} disabled={busyIds.has(job.id)} class="text-[11.5px] text-fleet-success border border-[#245c46] rounded-full px-2.5 py-0.5 cursor-pointer disabled:opacity-50" data-testid="loop-job-resume">Resume</button>
+              <button type="button" onclick={() => stopOrResume(job.id, 'resume')} disabled={busyIds.has(job.id)} class="text-[11.5px] text-fleet-success border border-fleet-success-border rounded-full px-2.5 py-0.5 cursor-pointer disabled:opacity-50" data-testid="loop-job-resume">Resume</button>
             {/if}
           </div>
         </div>

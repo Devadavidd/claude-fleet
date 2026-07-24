@@ -72,7 +72,7 @@
     title="Hide or delete this session"
     aria-haspopup="menu"
     aria-expanded={open}
-    class="w-6 h-6 flex items-center justify-center rounded-md text-fleet-dim hover:text-fleet-text hover:bg-[#1a2030] cursor-pointer"
+    class="w-6 h-6 flex items-center justify-center rounded-md text-fleet-dim hover:text-fleet-text hover:bg-fleet-chip cursor-pointer"
     data-testid="dismiss-toggle"
   >✕</button>
 
@@ -88,7 +88,7 @@
       >Hide from dashboard <span class="text-fleet-faint">(transcript kept)</span></button>
       <button
         type="button" role="menuitem" disabled={busy} onclick={onDelete}
-        class={`w-full text-left px-3 py-1.5 text-[12px] cursor-pointer disabled:opacity-60 ${armedDelete ? 'bg-red-950/60 text-red-300 font-semibold' : 'text-[#d66a6a] hover:bg-red-950/40'}`}
+        class={`w-full text-left px-3 py-1.5 text-[12px] cursor-pointer disabled:opacity-60 ${armedDelete ? 'bg-red-950/60 text-red-300 font-semibold' : 'text-red-500 hover:bg-red-950/40'}`}
         data-testid="dismiss-delete"
       >{armedDelete ? '⚠ Click again — deletes transcript FOREVER' : 'Delete forever… (desktop app loses it too)'}</button>
       {#if error}<div class="px-3 py-1 text-[11px] text-fleet-warn" data-testid="dismiss-error">{error}</div>{/if}

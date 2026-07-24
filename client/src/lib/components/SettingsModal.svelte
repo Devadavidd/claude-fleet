@@ -106,7 +106,7 @@
         <h3 class="m-0 text-[15px] font-semibold flex-1">Launch settings</h3>
         <button type="button" onclick={onClose} aria-label="Close" class="text-fleet-dim cursor-pointer hover:text-fleet-text">✕</button>
       </div>
-      <div class="text-[11.5px] text-[#d6b566] bg-fleet-warn/10 border border-[#4a3f18] rounded-lg px-3 py-2.5 leading-relaxed">
+      <div class="text-[11.5px] text-fleet-warn-text bg-fleet-warn/10 border border-fleet-warn-border rounded-lg px-3 py-2.5 leading-relaxed">
         A launched agent can read/write/run anything your user can — the directory only sets where it starts. Add only directories you would run an agent in yourself.
       </div>
       {#if loading}
@@ -134,7 +134,7 @@
             data-testid="settings-add-input"
             onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRoot(); } }}
           />
-          <button type="button" onclick={addRoot} class="text-[12px] text-fleet-accent border border-[#33346a] rounded-lg px-3 cursor-pointer" data-testid="settings-add-button">Add</button>
+          <button type="button" onclick={addRoot} class="text-[12px] text-fleet-accent border border-fleet-accent-border rounded-lg px-3 cursor-pointer" data-testid="settings-add-button">Add</button>
         </div>
         {#if settings.envRoots.length}
           <div class="text-[11px] text-fleet-faint">Also allowed via env (fixed): {settings.envRoots.join(', ')}</div>
