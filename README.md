@@ -105,8 +105,10 @@ npm run install-hook     # one-time; backs up ~/.claude/settings.json, npm run u
 The hook is **strictly opt-in per session** — installed globally but inert unless a session's environment carries `FLEET_REMOTE_APPROVE=on`:
 
 - **Supervised launches opt in automatically:** tick *"🔐 Ask before running tools"* in the Launch dialog — every risky tool call comes back to you as Allow/Deny, and the idle reaper leaves the session alone while it waits.
-- **Terminal sessions opt in explicitly:** `FLEET_REMOTE_APPROVE=on claude`
-- **Everything else — the desktop app, your everyday terminal sessions — is never touched.** No env marker, no interception, no surprise waits.
+- **Terminal sessions opt in explicitly:** `FLEET_REMOTE_APPROVE=on claude` — or enable it for *every* new terminal once with `npm run enable-terminal-approve` (`npm run disable-terminal-approve` reverts). See [docs/configuration.md](docs/configuration.md#auto-opt-in-for-terminal-sessions).
+- **Everything else — the desktop app, your everyday terminal sessions — is never touched.** No env marker, no interception, no surprise waits. (The terminal auto opt-in is scoped to shells only; Dock/GUI desktop launches never read the shell profile.)
+
+External sessions that aren't opted in still show up on the board read-only; their timeline shows a one-line hint on how to opt in (restart with the env marker) instead of leaving you guessing why there are no Allow/Deny buttons.
 
 How it stays safe:
 
@@ -128,7 +130,7 @@ Everything is optional — defaults give a working read-only dashboard. The vars
 |-----|---------|---------|
 | `FLEET_PORT` | `4600` | HTTP port (always binds `127.0.0.1`) |
 | `FLEET_ALLOWED_ROOTS` | *(empty = launching disabled)* | Comma-separated dirs where agents may run |
-| `FLEET_LAUNCH_MODEL` | `claude-haiku-4-5-20251001` | Default model for launched sessions |
+| `FLEET_LAUNCH_MODEL` | `claude-opus-4-8` | Default model for launched sessions (set a cheaper id to trade capability for cost) |
 | `FLEET_MAX_CONCURRENT` | `3` | Max concurrently launched sessions |
 | `FLEET_ACTIVE_MINUTES` | `0` (unlimited) | Hide sessions idle longer than this (display-only) |
 

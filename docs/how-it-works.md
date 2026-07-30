@@ -65,6 +65,8 @@ Fleet server (server/src/domain/permission-request-broker.ts)
 
 Safety properties, each pinned by `test/server/remote-permission-approval-flow.test.js` and the phase-1 spike: fail-open when the server is down; auto sessions never intercepted; only the token-guarded answer click authorizes execution; installer backs up `settings.json` and `npm run uninstall-hook` restores. Supervised launches (`--permission-mode default` instead of bypass) reuse this exact path, and the idle reaper holds off while a request is pending.
 
+**Making opt-in less tedious.** `npm run enable-terminal-approve` (`scripts/enable-terminal-remote-approve.cjs`) writes a marked `export FLEET_REMOTE_APPROVE=on` block into the shell profile so every new terminal `claude` opts in without the prefix — terminal-only on purpose, since GUI/Dock desktop launches don't source the profile and so stay safe from the freeze. It can't upgrade an already-running session (the env is fixed at process start), so for external sessions that aren't opted in, the session timeline renders a one-line hint explaining how to opt in (`FLEET_REMOTE_APPROVE=on claude --resume <id>`) rather than silently showing no buttons.
+
 ## Data model sketch
 
 A session card is derived state: `sessionId`, project slug (from the transcript path), title (first user prompt), `status` (`working` | `waiting-for-you` | `idle`), current action (latest tool call summary), files touched, token counters and burn rate, subagent rows (`label`, `status`, current action), and the pending question (text + options) when one is open. Timeline entries map 1:1 to transcript events, with Edit/Write payloads rendered as diffs and Bash outputs ANSI-parsed into terminal blocks (progress-bar `\r` churn collapsed).

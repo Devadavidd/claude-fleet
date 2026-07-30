@@ -21,8 +21,8 @@ Launching is **disabled until `FLEET_ALLOWED_ROOTS` is set** — that's the mast
 | Var | Default | Meaning |
 |-----|---------|---------|
 | `FLEET_ALLOWED_ROOTS` | *(empty — disabled)* | Comma-separated directories agents may run in. Launch cwds must canonicalize under one of them. `~` expands. |
-| `FLEET_ALLOWED_MODELS` | `claude-haiku-4-5-20251001, claude-sonnet-5, claude-opus-4-8, claude-fable-5` | Model whitelist for launches (the composer pill offers exactly these). |
-| `FLEET_LAUNCH_MODEL` | `claude-haiku-4-5-20251001` | Default model when the composer pill isn't changed — deliberately the cheap one. |
+| `FLEET_ALLOWED_MODELS` | `claude-opus-4-8, claude-sonnet-5, claude-haiku-4-5-20251001, claude-fable-5` | Model whitelist for launches (the composer pill offers exactly these). |
+| `FLEET_LAUNCH_MODEL` | `claude-opus-4-8` | Default model when the composer pill isn't changed — the most capable one. Set a cheaper id (e.g. `claude-haiku-4-5-20251001`) to trade capability for cost. |
 | `FLEET_MAX_TURNS` | `40` | Hard per-launch turn ceiling. |
 | `FLEET_MAX_CONCURRENT` | `3` | Global cap on concurrently launched processes. |
 | `FLEET_IDLE_KILL_MIN` | `20` | A launched session silent for this many minutes is reaped (any output resets the clock). |
@@ -38,6 +38,23 @@ Opt-in via `npm run install-hook` (see the README section); `npm run uninstall-h
 | `FLEET_REMOTE_APPROVE` | *(unset — hook inert)* | **Opt-in marker.** Set to exactly `on` in a session's environment to route its permission prompts to the dashboard (`FLEET_REMOTE_APPROVE=on claude`). Supervised dashboard launches inject it automatically. Any other value (or absence) leaves the session untouched. |
 | `FLEET_URL` | `http://127.0.0.1:4600` | Where the hook reaches the dashboard. Set it if you changed `FLEET_PORT` (supervised launches get the right port injected automatically). |
 | `FLEET_CLAUDE_SETTINGS` | `~/.claude/settings.json` | Settings file the installer edits and the hook-status endpoint reads — override for testing only. |
+
+### Auto opt-in for terminal sessions
+
+Typing `FLEET_REMOTE_APPROVE=on` before every `claude` gets old. Enable it once for **every new terminal session**:
+
+```bash
+npm run enable-terminal-approve    # backs up + adds a marked block to your shell profile
+npm run disable-terminal-approve   # removes only that block
+```
+
+It writes an `export FLEET_REMOTE_APPROVE=on` block (clearly marked, idempotent, with a timestamped backup) into your shell profile — `~/.zshrc`, `~/.bashrc`, or `~/.profile` depending on `$SHELL`, overridable with `FLEET_SHELL_PROFILE`. Open a new terminal (or `source` the profile) and every `claude` you start there is dashboard-approvable.
+
+**Scope is deliberately terminal-only.** GUI/Dock launches of the desktop app don't read the shell profile, so they never inherit the marker and can't be frozen waiting on the dashboard. Note two limits: it only affects sessions started *after* you enable it (a session's environment is fixed at launch, so an already-running one can't be upgraded — restart it), and while a session is opted in its prompts are answered on the **dashboard** (the native terminal prompt is suppressed for the duration of the wait).
+
+| Var | Default | Meaning |
+|-----|---------|---------|
+| `FLEET_SHELL_PROFILE` | *(auto by `$SHELL`)* | Force the profile file `enable-terminal-approve` edits (e.g. a non-standard rc file). |
 
 ## Always-on loop jobs
 
