@@ -13,7 +13,7 @@
 // no decision, which lets Claude Code fall through to its normal permission
 // flow. A dead dashboard must never freeze or break a session.
 //
-// Flow: read hook input from stdin → skip auto (bypassPermissions) sessions →
+// Flow: read hook input from stdin → skip auto (any non-ask) mode sessions →
 // POST the request to the fleet server → long-poll the decision endpoint
 // (204 = still waiting, keep polling; the server holds each poll ~55s so the
 // overall wait is unbounded) → emit permissionDecision JSON on stdout.
@@ -60,8 +60,14 @@ function buildPermissionRequest(rawStdin, env) {
   let input;
   try { input = JSON.parse(rawStdin); } catch { return null; }
   if (!input || typeof input !== 'object') return null;
-  // Belt-and-braces: even an opted-in bypass session is auto by definition.
-  if (input.permission_mode === 'bypassPermissions') return null;
+  // Only intercept modes where the user still expects to be ASKED. Any auto
+  // mode — `acceptEdits`, `bypassPermissions`, the CLI's `auto`, or an unknown
+  // future mode — means the session already chose to self-approve; routing it
+  // to the dashboard would drag an auto session into a wait it never wanted,
+  // and for acceptEdits could freeze on an edit it would have auto-accepted.
+  // Allowlist (not a blocklist) so unrecognized modes fail open to no wait.
+  const ASK_MODES = new Set(['default', 'plan']);
+  if (!ASK_MODES.has(String(input.permission_mode || 'default'))) return null;
   if (typeof input.session_id !== 'string' || !input.session_id) return null;
   return {
     sessionId: input.session_id,

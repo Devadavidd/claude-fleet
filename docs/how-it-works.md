@@ -46,12 +46,12 @@ The honest caveat, stated in the UI too: launched agents run with permissions au
 
 ## Remote permission approval (opt-in hook)
 
-`npm run install-hook` merges a `PreToolUse` entry (matcher `Bash|Edit|Write|MultiEdit|NotebookEdit`) into `~/.claude/settings.json`, pointing at `hooks/fleet-permission-approval-hook.cjs` — a standalone, zero-dependency script. It is **opt-in per session**: inert unless the session env carries `FLEET_REMOTE_APPROVE=on` (supervised launches inject it; terminals opt in with an env prefix). Lesson from the field: the desktop app's "auto" mode is `acceptEdits`, not `bypassPermissions` — a mode-based blocklist froze auto sessions, so activation is an explicit allowlist marker instead.
+`npm run install-hook` merges a `PreToolUse` entry (matcher `Bash|Edit|Write|MultiEdit|NotebookEdit`) into `~/.claude/settings.json`, pointing at `hooks/fleet-permission-approval-hook.cjs` — a standalone, zero-dependency script. It is **opt-in per session**: inert unless the session env carries `FLEET_REMOTE_APPROVE=on` (supervised launches inject it; terminals opt in with an env prefix). On top of the opt-in marker, the hook only intercepts **ask-modes** (`default`/`plan`) — any auto mode (`acceptEdits`, `bypassPermissions`, the CLI's `auto`, or an unknown future mode) is left alone, so an opted-in session the user runs in auto is never dragged into a dashboard wait (and an auto-accepted edit can never freeze on one). Lesson from the field that shaped this: the desktop app's "auto" is `acceptEdits`, not `bypassPermissions` — an earlier version that keyed off a narrow mode blocklist froze auto sessions, so both the activation marker and the ask-mode filter are allowlists that fail open to *no* interception.
 
 ```
 Claude Code session (supervised launch, or FLEET_REMOTE_APPROVE=on terminal)
   └─ PreToolUse hook
-       ├─ env FLEET_REMOTE_APPROVE ≠ 'on' or bypassPermissions → exit 0 (inert)
+       ├─ env FLEET_REMOTE_APPROVE ≠ 'on', or mode isn't default/plan → exit 0 (inert)
        ├─ POST /api/permissions/request  (300ms-ish fail-open if server absent)
        └─ long-poll GET /api/permissions/:id/decision  (204 → re-poll forever)
 Fleet server (server/src/domain/permission-request-broker.ts)
