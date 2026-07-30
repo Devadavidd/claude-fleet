@@ -178,6 +178,13 @@ const SECURITY_HEADERS = {
 - Summarizes long tool outputs for the board card (truncates, highlights)
 - Powers the "current action" label on SessionCard
 
+**PermissionRequestBroker** (`permission-request-broker.ts`)
+- In-memory bridge between a blocked PreToolUse hook (in any Claude Code session) and the dashboard's Allow/Deny click
+- `POST /api/permissions/request` registers (idempotent per session+toolUse); hook long-polls `GET /:id/decision` (204 → re-poll, unbounded wait); token-guarded `POST /:id/answer` resolves
+- Emits `permission-pending`/`permission-resolved` → reducer folds them as `pendingQuestion kind:'permission'` (card flips to waiting-for-you) and the launched registry holds/releases idle-kill
+- Zombie GC: reducer `tool-result` events cancel terminal-answered requests; heartbeat `sweepOrphans()` cancels requests whose hook process died
+- In-session half: `hooks/fleet-permission-approval-hook.cjs` (standalone, fail-open); installer `scripts/install-fleet-permission-hook.cjs` (`npm run install-hook` / `uninstall-hook`)
+
 ### Readers (`server/src/readers/**`)
 
 **Read-only, defensive parsing.** Never crashes on corrupt input.

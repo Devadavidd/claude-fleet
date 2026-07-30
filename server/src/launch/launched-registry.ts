@@ -26,6 +26,7 @@ export interface RegisterEntryInput {
   model?: string;
   startedAt?: number;
   steerable?: boolean;
+  supervised?: boolean; // launched without bypassPermissions (fleet-hook approvals)
   status?: string; // callers may pre-set a reservation status (e.g. 'starting')
   child?: LaunchedChildLike;
 }
@@ -34,6 +35,10 @@ export interface LaunchedEntry extends RegisterEntryInput {
   sessionId: string;
   status: string;
   idleTimer?: NodeJS.Timeout;
+  // True while a permission request is pending on this session: a child
+  // blocked on the user's Allow/Deny is waiting BY DESIGN, not wedged —
+  // idle-kill is suspended until the request resolves.
+  idleHeld?: boolean;
 }
 
 export interface LaunchedRegistryOptions {
@@ -65,8 +70,25 @@ export class LaunchedRegistry {
     const e = this.byId.get(id);
     if (!e) return;
     if (e.idleTimer) clearTimeout(e.idleTimer);
+    if (e.idleHeld) return; // waiting on a permission decision — never reap
     e.idleTimer = setTimeout(() => this.idleReap(id), this.idleKillMs);
     e.idleTimer.unref?.();
+  }
+
+  // Suspend idle-kill while the session waits on a human permission decision.
+  holdIdle(id: string): void {
+    const e = this.byId.get(id);
+    if (!e) return;
+    e.idleHeld = true;
+    if (e.idleTimer) clearTimeout(e.idleTimer);
+  }
+
+  // Decision arrived — resume the normal idle clock from now.
+  releaseIdle(id: string): void {
+    const e = this.byId.get(id);
+    if (!e) return;
+    e.idleHeld = false;
+    this.armIdle(id);
   }
 
   // Reap an idle session with the same SIGTERM→SIGKILL escalation the manual Stop
@@ -182,12 +204,21 @@ export function reapOrphans(pidFile: string | null, isClaude: (pid: number) => b
 }
 
 // Only reap a pid whose command line is unmistakably one of OUR launches: a
-// claude process spawned with `bypassPermissions`. This deliberately excludes
-// the user's interactive `claude` CLI and the node dashboard, so a recycled pid
-// landing on them is never group-killed.
+// claude process spawned headless with stream-json plumbing AND one of the two
+// permission modes we ever pass (`bypassPermissions` for auto launches,
+// `default` for supervised ones). The stream-json requirement deliberately
+// excludes the user's interactive `claude` CLI — which may legitimately run
+// `--permission-mode default` — so a recycled pid landing on it is never
+// group-killed.
 function defaultIsClaude(pid: number): boolean {
   try {
-    const cmd = execFileSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' });
-    return /claude/i.test(cmd) && /bypassPermissions/.test(cmd);
+    return isOurLaunchCommandLine(execFileSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' }));
   } catch { return false; }
+}
+
+/** Pure ps-command-line classifier behind defaultIsClaude — exported for tests. */
+export function isOurLaunchCommandLine(cmd: string): boolean {
+  return /claude/i.test(cmd)
+    && /--input-format stream-json/.test(cmd)
+    && /--permission-mode (bypassPermissions|default)/.test(cmd);
 }

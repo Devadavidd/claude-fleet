@@ -1,10 +1,13 @@
-<!-- Surfaces the pending AskUserQuestion/plan-approval right on the card (and
-     inside the session composer). A steerable launched session's option chips
-     are clickable and POST the answer via /api/sessions/:id/steer (fail-soft
-     on non-2xx — the next SSE delta reconciles real state either way);
-     otherwise chips are read-only spans. Single-select questions send on
-     click; multiSelect questions toggle chips locally and send the whole
-     selection with the Answer button. -->
+<!-- Surfaces the pending AskUserQuestion/plan-approval/permission-request
+     right on the card (and inside the session composer). A steerable launched
+     session's option chips are clickable and POST the answer via
+     /api/sessions/:id/steer (fail-soft on non-2xx — the next SSE delta
+     reconciles real state either way); otherwise chips are read-only spans.
+     Single-select questions send on click; multiSelect questions toggle chips
+     locally and send the whole selection with the Answer button.
+     Permission requests (kind 'permission') answer through the broker endpoint
+     instead — that channel is the blocked PreToolUse hook, not stdin, so it
+     works for EVERY session (terminal, desktop app, launched). -->
 <script lang="ts">
   import { fleetMutate } from '../auth.js';
   import type { SessionCard } from '../../../../shared/types/index.js';
@@ -15,10 +18,13 @@
 
   const { card }: Props = $props();
   const pending = $derived(card.pendingQuestion);
+  const isPermission = $derived(pending?.kind === 'permission');
   // Answerable when the child can be steered — or when it is NOT ours/alive at
   // all, in which case the steer endpoint resumes the session with the answer.
   // Only a launched-but-unsteerable (stdin closed) child stays read-only.
-  const canAnswer = $derived(card.launched === true ? card.steerable === true : true);
+  // Permission requests are ALWAYS answerable: the hook holds the tool call
+  // open no matter who owns the session.
+  const canAnswer = $derived(isPermission || (card.launched === true ? card.steerable === true : true));
 
   // Per-question toggled options for multiSelect questions, keyed by question
   // index. Reset only when a DIFFERENT question block arrives: the effect must
@@ -31,6 +37,13 @@
 
   async function send(selections: string[]): Promise<void> {
     try {
+      if (isPermission) {
+        // Allow/Deny resolves the blocked PreToolUse hook via the broker.
+        const requestId = pending?.requestId ?? '';
+        const decision = selections[0] === 'Allow' ? 'allow' : 'deny';
+        await fleetMutate(`/api/permissions/${encodeURIComponent(requestId)}/answer`, { decision });
+        return;
+      }
       await fleetMutate(`/api/sessions/${encodeURIComponent(card.sessionId)}/steer`, { type: 'answer', selections });
     } catch {
       // Fail-soft: offline/non-2xx just means the answer wasn't sent this click.
@@ -57,13 +70,17 @@
 {#if pending}
   <div class="bg-fleet-warn/[0.07] border border-fleet-warn-border rounded-lg px-2.5 py-2 mb-2.5" data-testid="question-chips">
     <div class="text-[11px] font-semibold text-fleet-dim mb-1">
-      {canAnswer ? '👤 Answer it below' : '👤 Lead is waiting for your answer'}
+      {#if isPermission}
+        🔐 Session is asking permission to run this
+      {:else}
+        {canAnswer ? '👤 Answer it below' : '👤 Lead is waiting for your answer'}
+      {/if}
     </div>
     {#each pending.questions as q, i (i)}
       <div class="mb-1.5 last:mb-0">
         {#if q.header}
           <div class="text-[11px] font-semibold text-fleet-warn mb-1">
-            ❓ {q.header}{q.multiSelect ? ' (multi)' : ''}
+            {isPermission ? '🔐' : '❓'} {q.header}{q.multiSelect ? ' (multi)' : ''}
           </div>
         {/if}
         {#if q.question}

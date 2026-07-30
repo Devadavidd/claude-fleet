@@ -15,10 +15,11 @@ function notify(card: SessionCard, kind: AlertKind): void {
   try {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     const q = card.pendingQuestion?.questions?.[0];
-    const body = kind === 'question'
+    const body = kind === 'question' || kind === 'permission'
       ? (q?.question || q?.header || 'waiting for your answer')
       : 'Session is waiting for your input';
-    const n = new Notification(`⏳ ${card.title}`, {
+    const icon = kind === 'permission' ? '🔐' : '⏳';
+    const n = new Notification(`${icon} ${card.title}`, {
       body,
       tag: `fleet-${card.sessionId}`, // replaces, never stacks per session
     });

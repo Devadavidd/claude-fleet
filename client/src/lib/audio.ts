@@ -1,11 +1,12 @@
 // Self-contained notification chimes via the Web Audio API — no audio asset,
 // works offline. Two distinct tones so you can tell by ear what happened:
-//   • 'done'     — a soft descending ding-dong (Claude replied, waiting on you)
-//   • 'question' — a more insistent rising arpeggio (blocked on your answer)
+//   • 'done'       — a soft descending ding-dong (Claude replied, waiting on you)
+//   • 'question'   — a more insistent rising arpeggio (blocked on your answer)
+//   • 'permission' — the same urgent arpeggio (a tool call is blocked on Allow/Deny)
 // Autoplay policy keeps the AudioContext suspended until a user gesture, so
 // unlockAudio() must run from a click/keydown before the first beep can sound.
 
-export type AlertKind = 'done' | 'question';
+export type AlertKind = 'done' | 'question' | 'permission';
 
 let ctx: AudioContext | null = null;
 
@@ -36,7 +37,7 @@ function beep(freq: number, offset: number, duration: number, peak: number): voi
 export function playAlertSound(kind: AlertKind = 'done'): void {
   unlockAudio();
   if (!ctx || ctx.state !== 'running') return; // not yet unlocked by a gesture
-  if (kind === 'question') {
+  if (kind === 'question' || kind === 'permission') {
     beep(659.25, 0, 0.18, 0.20);    // E5
     beep(830.61, 0.16, 0.18, 0.20); // G#5
     beep(987.77, 0.32, 0.26, 0.22); // B5

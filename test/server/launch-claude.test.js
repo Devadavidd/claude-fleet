@@ -56,6 +56,41 @@ test('spawns an argv ARRAY carrying bypassPermissions — never a shell string',
   assert.deepEqual(opts.stdio, ['pipe', 'pipe', 'pipe']);
 });
 
+test('supervised launch swaps ONLY the permission mode (default, not bypass)', async () => {
+  const plain = launchWith();
+  plain.child.emit('spawn');
+  await plain.promise;
+  const supervised = launchWith({ supervised: true });
+  supervised.child.emit('spawn');
+  await supervised.promise;
+
+  const a = plain.calls[0].args;
+  const b = supervised.calls[0].args;
+  const at = b.indexOf('--permission-mode');
+  assert.equal(b[at + 1], 'default');
+  // Everything else in the argv contract stays byte-identical.
+  assert.deepEqual(
+    b.filter((_, i) => i !== at + 1),
+    a.filter((_, i) => i !== at + 1),
+  );
+});
+
+test('supervised launch opts the child in via env; plain launch inherits env untouched', async () => {
+  const plain = launchWith();
+  plain.child.emit('spawn');
+  await plain.promise;
+  // No env key at all → spawn inherits the parent env (historical contract).
+  assert.equal(plain.calls[0].opts.env, undefined);
+
+  const supervised = launchWith({ supervised: true, env: { FLEET_URL: 'http://127.0.0.1:4999' } });
+  supervised.child.emit('spawn');
+  await supervised.promise;
+  const env = supervised.calls[0].opts.env;
+  assert.equal(env.FLEET_REMOTE_APPROVE, 'on'); // the per-session opt-in marker
+  assert.equal(env.FLEET_URL, 'http://127.0.0.1:4999'); // port-aware server address
+  assert.equal(env.PATH, process.env.PATH); // parent env still present
+});
+
 test('task/cwd/model can never inject: task goes to stdin JSON, not argv', async () => {
   const evil = '"; rm -rf / #';
   const { calls, child, promise } = launchWith({ task: evil, model: evil });

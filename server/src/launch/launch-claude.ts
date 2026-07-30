@@ -42,12 +42,27 @@ export interface LaunchClaudeParams {
    * `--add-dir` the agent may read/edit in addition to cwd.
    */
   addDirs?: readonly string[];
+  /**
+   * Supervised mode: launch with `--permission-mode default` instead of
+   * bypassPermissions AND inject FLEET_REMOTE_APPROVE=on (+ FLEET_URL via
+   * `env`) — the hook is opt-in per session, and this is the opt-in. Requires
+   * the hook to be installed (the spawn route enforces that) — in headless
+   * default mode WITHOUT the hook the CLI just auto-denies every gated tool.
+   */
+  supervised?: boolean;
+  /**
+   * Extra environment for the child (merged over process.env). Only passed to
+   * spawn when non-empty, so plain launches keep the inherit-env contract.
+   */
+  env?: Readonly<Record<string, string>>;
 }
 
 export interface SpawnFnOptions {
   cwd: string;
   detached: boolean;
   stdio: ['pipe', 'pipe', 'pipe'];
+  /** Present only for supervised launches (opt-in env markers ride here). */
+  env?: NodeJS.ProcessEnv;
 }
 
 export type SpawnFn = (command: string, args: readonly string[], options: SpawnFnOptions) => ChildProcess;
@@ -71,14 +86,16 @@ export interface LaunchClaudeResult {
 }
 
 export function launchClaude(
-  { sessionId, cwd, model, task, maxTurns, steerable = false, pluginDir, resume = false, addDirs = [] }: LaunchClaudeParams,
+  { sessionId, cwd, model, task, maxTurns, steerable = false, pluginDir, resume = false, addDirs = [], supervised = false, env = {} }: LaunchClaudeParams,
   { onExit, onActivity, spawnFn = spawn }: LaunchClaudeHooks = {},
 ): Promise<LaunchClaudeResult> {
   const args = [
     '-p',
     '--input-format', 'stream-json',
     '--output-format', 'stream-json',
-    '--permission-mode', 'bypassPermissions',
+    // The explicit --permission-mode flag doubles as the orphan-reaper marker:
+    // defaultIsClaude only ever group-kills a ps line carrying one of OUR modes.
+    '--permission-mode', supervised ? 'default' : 'bypassPermissions',
     ...(resume ? ['--resume', sessionId] : ['--session-id', sessionId]),
     '--model', model,
     '--max-turns', String(maxTurns),
@@ -88,9 +105,18 @@ export function launchClaude(
     // when inactive so the legacy argv contract stays byte-identical.
     ...(pluginDir ? ['--plugin-dir', pluginDir] : []),
   ];
+  // Supervised opt-in: the hook is inert unless the session env says so.
+  const extraEnv = { ...(supervised ? { FLEET_REMOTE_APPROVE: 'on' } : {}), ...env };
   return new Promise((resolve, reject) => {
     let settled = false;
-    const child = spawnFn('claude', args, { cwd, detached: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawnFn('claude', args, {
+      cwd,
+      detached: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      // Only add `env` when there is something to add — a plain launch keeps
+      // the historical inherit-parent-env spawn contract byte-identical.
+      ...(Object.keys(extraEnv).length ? { env: { ...process.env, ...extraEnv } } : {}),
+    });
     let stderr = '';
     child.stderr?.on('data', (d: Buffer) => { stderr += d.toString(); if (stderr.length > 4000) stderr = stderr.slice(-4000); });
     // Any output = the session is alive/working → reset its idle timer.

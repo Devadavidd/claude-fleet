@@ -2,8 +2,12 @@ import http from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import type { SessionCard, SseEvent, WorkflowRun } from '../../../shared/types/index.js';
+import type { PendingQuestion, SessionCard, SseEvent, WorkflowRun } from '../../../shared/types/index.js';
+import { PermissionRequestBroker } from '../domain/permission-request-broker.js';
+import type { PendingPermission } from '../domain/permission-request-broker.js';
+import { summarizeToolUse } from '../domain/tool-call-summarizer.js';
 import { readTimeline } from '../readers/timeline-reader.js';
 import { aggregateFileTouches } from '../domain/session-metrics.js';
 import type { FileTouchSource } from '../domain/session-metrics.js';
@@ -46,6 +50,12 @@ import type { WorkflowRunProjection } from '../workflows/workflow-registry.js';
 export interface SseReducerLike {
   on(event: 'session-updated', listener: (card: SessionCard) => void): unknown;
   on(event: 'session-removed', listener: (payload: { sessionId: string }) => void): unknown;
+  // Permission-approval integration ('tool-result' subscription rides the same
+  // overloads). Optional so lightweight test doubles that predate the feature
+  // keep working — the server guards every call site.
+  on(event: 'tool-result', listener: (payload: { sessionId: string; toolUseId: string }) => void): unknown;
+  setPendingPermission?(sessionId: string, question: PendingQuestion): void;
+  clearPendingPermission?(sessionId: string, requestId: string): void;
   listCards(): SessionCard[];
   listStates(): Iterable<TouchedFileSessionState & FileTouchSource>;
   listProjectRoots(): Array<string | null | undefined>;
@@ -88,6 +98,7 @@ export class SseServer {
   readonly server: http.Server;
   readonly clients: Set<ServerResponse>;
   readonly launched: LaunchedRegistry;
+  readonly permissions: PermissionRequestBroker;
   readonly supervisor: LoopSupervisor;
   readonly skillInstalls: SkillInstallService;
   // Serialize bundle syncs: a second POST while one runs gets a 409 instead of
@@ -160,6 +171,20 @@ export class SseServer {
       });
       workflows.on('workflow-removed', (info) => this.#broadcastEvent({ type: 'workflow-removed', data: info }));
     }
+    // Permission-approval broker: PreToolUse hooks long-poll it, the UI answers
+    // it, and its pending/resolved edges drive the card + idle-kill hold.
+    this.permissions = new PermissionRequestBroker();
+    this.permissions.on('permission-pending', (request) => {
+      this.reducer.setPendingPermission?.(request.sessionId, permissionQuestion(request));
+      this.launched.holdIdle(request.sessionId);
+    });
+    this.permissions.on('permission-resolved', ({ requestId, sessionId }) => {
+      this.reducer.clearPendingPermission?.(sessionId, requestId);
+      // Only release the idle clock once NO request is left on the session.
+      if (this.permissions.listPending(sessionId).length === 0) this.launched.releaseIdle(sessionId);
+    });
+    // Terminal-answered / already-resolved tool calls cancel their request.
+    reducer.on('tool-result', ({ sessionId, toolUseId }) => this.permissions.resolveByToolUse(sessionId, toolUseId));
     this.clients = new Set();
     this.server = http.createServer((req, res) => this.#route(req, res));
     // Loop-cycle sessions are autonomous (they never "need you"), so keep them off
@@ -174,6 +199,9 @@ export class SseServer {
     // The periodic snapshot also lets cards flip to "idle" without any new
     // transcript event — status decay has no event to piggyback on.
     this.heartbeat = setInterval(() => {
+      // Piggyback: cancel permission requests whose hook died (Ctrl+C/crash) so
+      // their cards don't sit in Waiting forever.
+      this.permissions.sweepOrphans();
       for (const client of this.clients) {
         client.write(': ping\n\n');
         writeSse(client, 'snapshot', this.#cardsWithLaunched());
@@ -188,6 +216,7 @@ export class SseServer {
 
   close(): Promise<void> {
     clearInterval(this.heartbeat);
+    this.permissions.close(); // flush held permission long-polls
     this.supervisor.stopAllTimers();
     for (const client of this.clients) client.end();
     return new Promise((resolve) => this.server.close(() => resolve()));
@@ -489,6 +518,62 @@ export class SseServer {
         escalate.unref?.();
         return sendJson(res, 202, { killed: id });
       }
+      // --- Remote permission approval (PreToolUse hook ⇄ dashboard) ---
+      // Display-only: whether the global PreToolUse hook is installed, so the
+      // UI can tell "remote approve ready" from "install-hook not run yet".
+      if (url.pathname === '/api/permissions/hook-status') {
+        return sendJson(res, 200, { installed: fleetHookInstalled() });
+      }
+      // Hook side: register a blocked tool call. No token (the standalone hook
+      // can't hold one) and no authority granted — only the ANSWER authorizes
+      // execution. But REQUIRE application/json: a hostile web page's simple
+      // cross-origin POST is text/plain (JSON bodies force a CORS preflight we
+      // never answer), so this one check keeps drive-by pages from spamming
+      // spoofed permission cards. The hook always sends application/json.
+      if (url.pathname === '/api/permissions/request' && req.method === 'POST') {
+        if (!String(req.headers['content-type'] ?? '').toLowerCase().startsWith('application/json')) {
+          return sendJson(res, 415, { error: 'application/json required' });
+        }
+        const body = (await readJsonBody(req)) as Record<string, unknown> | null;
+        if (!body || typeof body.sessionId !== 'string' || !body.sessionId) {
+          return sendJson(res, 400, { error: 'sessionId required' });
+        }
+        const registered = this.permissions.request({
+          sessionId: body.sessionId,
+          toolName: typeof body.toolName === 'string' ? body.toolName : '',
+          toolInput: body.toolInput ?? {},
+          toolUseId: typeof body.toolUseId === 'string' ? body.toolUseId : '',
+          permissionMode: typeof body.permissionMode === 'string' ? body.permissionMode : '',
+          cwd: typeof body.cwd === 'string' ? body.cwd : '',
+        });
+        // At the pending cap the broker refuses — non-200 makes the hook fail
+        // open (normal prompt) instead of queueing unboundedly.
+        if (!registered) return sendJson(res, 503, { error: 'too many pending permission requests' });
+        return sendJson(res, 200, { requestId: registered.requestId });
+      }
+      // Hook side: long-poll the decision. 204 = still pending (hook re-polls,
+      // making the overall wait unbounded); 404 = unknown (hook re-registers).
+      const permDecisionMatch = url.pathname.match(/^\/api\/permissions\/([^/]+)\/decision$/);
+      if (permDecisionMatch && req.method === 'GET') {
+        const result = await this.permissions.waitDecision(decodeURIComponent(permDecisionMatch[1]), 55_000);
+        if (result === null) return sendJson(res, 404, { error: 'unknown request' });
+        if (result === 'timeout') { res.writeHead(204, SECURITY_HEADERS); res.end(); return; }
+        return sendJson(res, 200, { decision: result });
+      }
+      // UI side: the Allow/Deny click. This click authorizes code execution in
+      // the blocked session — guard it like every other mutation.
+      const permAnswerMatch = url.pathname.match(/^\/api\/permissions\/([^/]+)\/answer$/);
+      if (permAnswerMatch && req.method === 'POST') {
+        const gate = requireMutation(req, this.fleetToken, { host: this.host, port: this.port });
+        if (!gate.ok) return sendJson(res, gate.status, { error: gate.error });
+        const body = (await readJsonBody(req)) as { decision?: unknown } | null;
+        const decision = body?.decision;
+        if (decision !== 'allow' && decision !== 'deny') {
+          return sendJson(res, 400, { error: 'decision must be allow | deny' });
+        }
+        const ok = this.permissions.answer(decodeURIComponent(permAnswerMatch[1]), decision);
+        return sendJson(res, ok ? 200 : 404, ok ? { answered: decision } : { error: 'unknown or already-decided request' });
+      }
       // Steer a running steerable session: answer its question / follow up / finish.
       // Second RCE-adjacent surface (writes into a bypassPermissions stdin) — guard
       // identically to /api/spawn, and gate to launched + steerable only.
@@ -638,6 +723,14 @@ export class SseServer {
     // Opt-in: keep stdin open so the session can be steered (answered/followed-up)
     // mid-run. Plain launches stay on the proven EOF-exit path.
     const steerable = b.steerable === true;
+    // Opt-in supervised mode: no bypassPermissions — risky tools block on the
+    // global fleet hook and are approved from the board. Without the hook a
+    // headless default-mode child just auto-denies every gated tool, so refuse
+    // to ship a broken session rather than let it limp.
+    const supervised = b.supervised === true;
+    if (supervised && !fleetHookInstalled()) {
+      return sendJson(res, 409, { error: 'supervised launch requires the approval hook — run `npm run install-hook` first' });
+    }
     // Caps — fork-bomb + same-tree-corruption guards (red-team C2/failure).
     if (this.launched.atCapacity()) {
       return sendJson(res, 429, { error: `at capacity (${config.maxConcurrent} concurrent launches)` });
@@ -653,14 +746,19 @@ export class SseServer {
     try {
       // Await the actual spawn so we never 202 a launch that immediately fails.
       const { pid, child } = await launchClaude(
-        { sessionId, cwd: cwdCheck.path, model, task, maxTurns: config.maxTurns, steerable, addDirs, pluginDir: activeCfPluginDir() },
+        {
+          sessionId, cwd: cwdCheck.path, model, task, maxTurns: config.maxTurns, steerable, addDirs, supervised,
+          // Point the child's hook at THIS server instance (port may differ from 4600).
+          ...(supervised ? { env: { FLEET_URL: `http://${this.host}:${this.port}` } } : {}),
+          pluginDir: activeCfPluginDir(),
+        },
         {
           onExit: () => this.#onLaunchedExit(sessionId), // cleanup + card refresh on exit/error
           onActivity: () => this.launched.touch(sessionId), // reset idle timer on output
         },
       );
-      this.launched.register(sessionId, { pid, child, cwd: cwdCheck.path, model, steerable, startedAt: Date.now() }); // upgrade
-      return sendJson(res, 202, { sessionId, cwd: cwdCheck.path, model, steerable });
+      this.launched.register(sessionId, { pid, child, cwd: cwdCheck.path, model, steerable, supervised, startedAt: Date.now() }); // upgrade
+      return sendJson(res, 202, { sessionId, cwd: cwdCheck.path, model, steerable, supervised });
     } catch (err) {
       this.launched.remove(sessionId); // release the reservation on spawn failure
       return sendJson(res, 500, { error: `launch failed: ${String((err as { message?: unknown } | null)?.message ?? err)}` });
@@ -823,6 +921,44 @@ function activeCfPluginDir(): string | undefined {
 
 function errorMessage(err: unknown): string {
   return String((err as { message?: unknown } | null)?.message ?? err);
+}
+
+// True when the fleet PreToolUse hook entry is present in the user's global
+// Claude Code settings (matched by the hook script's filename marker — the
+// same marker the installer uses for idempotence).
+function fleetHookInstalled(): boolean {
+  try {
+    const settingsPath = process.env.FLEET_CLAUDE_SETTINGS
+      || path.join(os.homedir(), '.claude', 'settings.json');
+    const parsed = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) as {
+      hooks?: { PreToolUse?: Array<{ hooks?: Array<{ command?: unknown }> }> };
+    };
+    return Boolean(parsed?.hooks?.PreToolUse?.some((entry) => entry?.hooks?.some(
+      (h) => typeof h?.command === 'string' && h.command.includes('fleet-permission-approval-hook.cjs'),
+    )));
+  } catch {
+    return false; // unreadable/missing settings — treat as not installed
+  }
+}
+
+// A broker request rendered as the card's pendingQuestion: same shape the
+// AskUserQuestion path produces, so every existing waiting-for-you surface
+// (board column, NeedsYouStrip, alerts) works unchanged.
+function permissionQuestion(request: PendingPermission): PendingQuestion {
+  const input = (request.toolInput && typeof request.toolInput === 'object'
+    ? request.toolInput : {}) as Record<string, unknown>;
+  return {
+    toolUseId: request.toolUseId,
+    kind: 'permission',
+    requestId: request.requestId,
+    askedAt: request.askedAt,
+    questions: [{
+      header: `Permission: ${request.toolName || 'tool'}`,
+      question: summarizeToolUse({ name: request.toolName, input }).summary,
+      multiSelect: false,
+      options: ['Allow', 'Deny'],
+    }],
+  };
 }
 
 function writeSse(res: ServerResponse, eventName: string, data: unknown): void {

@@ -98,13 +98,13 @@ export const config = Object.freeze({
   // A launch is only permitted with cwd canonicalizing under one of these roots.
   // EMPTY = launching disabled (safe default; opt in via FLEET_ALLOWED_ROOTS).
   allowedRoots: envList('FLEET_ALLOWED_ROOTS', []),
-  // Strict model whitelist for launches. The full ladder is offered (haiku →
-  // fable) so the web picker matches the desktop app; the DEFAULT model stays
-  // the cheap one — spending big is always an explicit pick.
+  // Strict model whitelist for launches. The full ladder is offered (opus →
+  // fable) so the web picker matches the desktop app; the DEFAULT is Opus 4.8
+  // (most capable) — set FLEET_LAUNCH_MODEL to a cheaper id to override.
   allowedModels: envList('FLEET_ALLOWED_MODELS', [
-    'claude-haiku-4-5-20251001', 'claude-sonnet-5', 'claude-opus-4-8', 'claude-fable-5',
+    'claude-opus-4-8', 'claude-sonnet-5', 'claude-haiku-4-5-20251001', 'claude-fable-5',
   ]),
-  launchModel: process.env.FLEET_LAUNCH_MODEL ?? 'claude-haiku-4-5-20251001',
+  launchModel: process.env.FLEET_LAUNCH_MODEL ?? 'claude-opus-4-8',
   maxTurns: envInt('FLEET_MAX_TURNS', 40), // hard per-launch turn ceiling
   maxConcurrent: envInt('FLEET_MAX_CONCURRENT', 3), // global concurrent-launch cap
   idleKillMin: envInt('FLEET_IDLE_KILL_MIN', 20), // any launched session reaped after this idle (output resets it)

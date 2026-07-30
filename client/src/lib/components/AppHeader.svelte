@@ -1,7 +1,10 @@
 <!-- Contextual header: Back button (shown when the router says so), title,
      ⌘K search stub, 🔔 alert toggle (localStorage + Notification permission,
      behavior preserved from the legacy top-nav bell), gradient Launch button.
-     Layout/colors translated from Fleet.dc.html ~L93-118 into Tailwind. -->
+     Layout/colors translated from Fleet.dc.html ~L93-118 into Tailwind.
+     A 🔐 pill appears ONLY while the remote-approve PreToolUse hook is NOT
+     installed — a quiet nudge toward `npm run install-hook`, invisible once
+     everything is set up. -->
 <script lang="ts">
   import { router, navigate } from '../router.svelte.js';
   import { unlockAudio } from '../audio.js';
@@ -24,6 +27,17 @@
     theme = next;
     setThemePref(next); // writes localStorage + <html data-theme>
   }
+
+  // 🔐 pill nudge: null = unknown (fetch pending/failed) → show nothing rather than nag.
+  let hookInstalled = $state<boolean | null>(null);
+  $effect(() => {
+    void (async () => {
+      try {
+        const res = await fetch('/api/permissions/hook-status');
+        if (res.ok) hookInstalled = Boolean(((await res.json()) as { installed?: unknown })?.installed);
+      } catch { /* server old/down — stay unknown */ }
+    })();
+  });
 
   function readAlertPref(): boolean {
     return typeof localStorage !== 'undefined' && localStorage.getItem('fleet-alerts') === 'on';
@@ -65,6 +79,13 @@
   </div>
 
   <div class="ml-auto flex items-center gap-2.5 flex-none">
+    {#if hookInstalled === false}
+      <span
+        title="Remote permission approval is off: run `npm run install-hook` so non-auto sessions can be approved from this dashboard"
+        class="text-[11px] text-fleet-warn bg-fleet-warn/10 border border-[#4a3f18] rounded-full px-2.5 py-1 whitespace-nowrap"
+        data-testid="hook-status-pill"
+      >🔐 approve hook not installed</span>
+    {/if}
     <div class="flex items-center gap-2 bg-fleet-panel border border-fleet-border-strong rounded-lg px-3 py-1.5 w-[230px] text-fleet-dim">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.4"/><path d="m11 11 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       <span class="text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis">Search sessions</span>

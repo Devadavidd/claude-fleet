@@ -35,6 +35,9 @@
   let folders = $state<string[]>([]);
   let model = $state('');
   let steerable = $state(true); // chat default: keep the session answerable
+  // Opt-in supervised mode: no auto-approve — risky tools wait for Allow/Deny
+  // on the board (requires the fleet PreToolUse hook; the server enforces it).
+  let supervised = $state(false);
   let asWorkflow = $state(false);
   let attachments = $state<File[]>([]);
   let submitting = $state(false);
@@ -72,6 +75,7 @@
     if (!open) return;
     prompt = '';
     steerable = true;
+    supervised = false;
     asWorkflow = false;
     attachments = [];
     error = null;
@@ -122,7 +126,7 @@
       }
       const task = composeLaunchTask({ prompt: goal, attachmentPaths, asWorkflow });
       const res = await fleetMutate('/api/spawn', {
-        task, cwd: folders[0], addDirs: folders.slice(1), model, steerable,
+        task, cwd: folders[0], addDirs: folders.slice(1), model, steerable, supervised,
       });
       const data = (await res.json().catch(() => ({}))) as { sessionId?: string; error?: string };
       if (res.status === 202 && data.sessionId) {
@@ -218,11 +222,22 @@
           <input type="checkbox" bind:checked={asWorkflow} data-testid="launch-workflow-checkbox" />
           <span class="text-[12.5px] text-fleet-muted">Run as a workflow (multi-agent orchestration)</span>
         </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" bind:checked={supervised} data-testid="launch-supervised-checkbox" />
+          <span class="text-[12.5px] text-fleet-muted">🔐 Ask before running tools (approve Bash/edits from the board)</span>
+        </label>
 
-        <div class="flex gap-2 bg-fleet-warn/10 border border-fleet-warn-border rounded-lg px-3 py-2.5 text-[11.5px] text-fleet-warn-text leading-relaxed">
-          <span class="flex-none">⚠</span>
-          <span>Runs an auto-approving agent that can edit and execute anything under the chosen directory.</span>
-        </div>
+        {#if supervised}
+          <div class="flex gap-2 bg-fleet-accent/10 border border-fleet-accent/40 rounded-lg px-3 py-2.5 text-[11.5px] text-fleet-accent leading-relaxed">
+            <span class="flex-none">🔐</span>
+            <span>Risky tool calls will wait — indefinitely — for your Allow/Deny on the board. Requires <code>npm run install-hook</code>.</span>
+          </div>
+        {:else}
+          <div class="flex gap-2 bg-fleet-warn/10 border border-fleet-warn-border rounded-lg px-3 py-2.5 text-[11.5px] text-fleet-warn-text leading-relaxed">
+            <span class="flex-none">⚠</span>
+            <span>Runs an auto-approving agent that can edit and execute anything under the chosen directory.</span>
+          </div>
+        {/if}
         {#if error}<div class="text-[12px] text-fleet-warn" data-testid="launch-error">{error}</div>{/if}
         <button type="button" onclick={submit} disabled={submitting} class="w-full bg-gradient-to-br from-fleet-accent to-fleet-accent-deep text-white border-0 rounded-lg px-4 py-2.5 text-[13.5px] font-semibold cursor-pointer disabled:opacity-60" data-testid="launch-submit">
           {submitting ? 'Starting…' : 'Launch session'}

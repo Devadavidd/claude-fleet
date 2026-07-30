@@ -70,6 +70,9 @@ export interface SessionStateReducerOptions {
 interface SessionStateReducerEventMap {
   'session-updated': [card: SessionCard];
   'session-removed': [payload: { sessionId: string }];
+  // A lead-session tool_use resolved (its tool_result arrived). The permission
+  // broker listens to cancel a request the terminal answered without us.
+  'tool-result': [payload: { sessionId: string; toolUseId: string }];
 }
 
 // Reduces the watcher's event stream into per-session fleet-board state and
@@ -100,7 +103,45 @@ export class SessionStateReducer extends EventEmitter<SessionStateReducerEventMa
   }): void {
     const state = this.getOrCreate(sessionId, projectSlug);
     if (agentId) applyAgentEvent(state, agentId, agentMeta, entry);
-    else applyEvent(state, entry);
+    else {
+      // Surface resolved tool_uses BEFORE folding (applyEvent prunes them from
+      // pendingToolUses) so the permission broker can cancel terminal-answered
+      // requests the moment the transcript proves the session moved on.
+      for (const toolUseId of resolvedToolUseIds(entry)) {
+        this.emit('tool-result', { sessionId, toolUseId });
+      }
+      applyEvent(state, entry);
+    }
+    this.scheduleEmit(sessionId);
+  }
+
+  // A permission request arrived from the PreToolUse hook — block the card on
+  // it exactly like an AskUserQuestion. The hook may fire before the first
+  // transcript flush, so getOrCreate (projectSlug backfills from the transcript).
+  setPendingPermission(sessionId: string, question: PendingQuestion): void {
+    const state = this.getOrCreate(sessionId, '');
+    state.pendingQuestion = question;
+    state.status = 'waiting-for-you';
+    state.currentAction = `🔐 ${question.questions[0]?.header || 'waiting for permission'}`;
+    this.scheduleEmit(sessionId);
+  }
+
+  // The broker resolved (answer / terminal / orphan sweep) — release the card,
+  // but only if it is still showing THIS permission request.
+  clearPendingPermission(sessionId: string, requestId: string): void {
+    const state = this.sessions.get(sessionId);
+    if (!state?.pendingQuestion) return;
+    if (state.pendingQuestion.kind !== 'permission' || state.pendingQuestion.requestId !== requestId) return;
+    state.pendingQuestion = null;
+    state.status = 'working';
+    // A state minted BY the permission request (no transcript ever backed it —
+    // spoofed sessionId, or a hook that fired and died before the first flush)
+    // would otherwise live in the map forever. Drop it instead of emitting a
+    // blank ghost card; a real transcript event recreates the session cleanly.
+    if (!state.cwd && !state.title && !state.firstPrompt && state.lastActivityAt === null) {
+      this.removeSession(sessionId);
+      return;
+    }
     this.scheduleEmit(sessionId);
   }
 
@@ -487,6 +528,14 @@ function activePlanDirFromEvent(event: TranscriptEvent): string {
     if (m && m[1] !== 'none' && m[1].includes('/plans/')) return m[1];
   }
   return '';
+}
+
+// tool_use ids whose result arrived in this entry (lead user events only).
+function resolvedToolUseIds(entry: TranscriptEntry): string[] {
+  if (entry.kind !== 'event' || entry.event.type !== 'user') return [];
+  return contentBlocks(entry.event.message?.content)
+    .filter((b) => b.type === 'tool_result' && typeof b.tool_use_id === 'string' && b.tool_use_id)
+    .map((b) => b.tool_use_id as string);
 }
 
 function contentBlocks(content: unknown): ContentBlock[] {
