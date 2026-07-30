@@ -39,10 +39,20 @@ test('OPT-IN GATE: without FLEET_REMOTE_APPROVE=on the hook is inert for every s
   assert.equal(buildPermissionRequest(HOOK_INPUT, { FLEET_REMOTE_APPROVE: '1' }), null); // exact 'on' only
 });
 
-test('even an opted-in bypassPermissions session is never intercepted', () => {
-  const input = JSON.parse(HOOK_INPUT);
-  input.permission_mode = 'bypassPermissions';
-  assert.equal(buildPermissionRequest(JSON.stringify(input), OPTED_IN), null);
+test('opted-in auto-mode sessions are never intercepted (only ask-modes are)', () => {
+  // Every non-ask mode self-approves — the hook must stay out so an "auto"
+  // terminal is not dragged into a dashboard wait it never asked for.
+  for (const mode of ['bypassPermissions', 'acceptEdits', 'auto', 'somethingNew']) {
+    const input = JSON.parse(HOOK_INPUT);
+    input.permission_mode = mode;
+    assert.equal(buildPermissionRequest(JSON.stringify(input), OPTED_IN), null, `mode ${mode} must skip`);
+  }
+  // Ask-modes are intercepted; a missing/empty mode is treated as default.
+  for (const mode of ['default', 'plan', '', undefined]) {
+    const input = JSON.parse(HOOK_INPUT);
+    input.permission_mode = mode;
+    assert.ok(buildPermissionRequest(JSON.stringify(input), OPTED_IN), `mode ${mode} must intercept`);
+  }
 });
 
 test('malformed stdin fails open (null request)', () => {

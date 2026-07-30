@@ -46,12 +46,12 @@ The honest caveat, stated in the UI too: launched agents run with permissions au
 
 ## Remote permission approval (opt-in hook)
 
-`npm run install-hook` merges a `PreToolUse` entry (matcher `Bash|Edit|Write|MultiEdit|NotebookEdit`) into `~/.claude/settings.json`, pointing at `hooks/fleet-permission-approval-hook.cjs` — a standalone, zero-dependency script. It is **opt-in per session**: inert unless the session env carries `FLEET_REMOTE_APPROVE=on` (supervised launches inject it; terminals opt in with an env prefix). Lesson from the field: the desktop app's "auto" mode is `acceptEdits`, not `bypassPermissions` — a mode-based blocklist froze auto sessions, so activation is an explicit allowlist marker instead.
+`npm run install-hook` merges a `PreToolUse` entry (matcher `Bash|Edit|Write|MultiEdit|NotebookEdit`) into `~/.claude/settings.json`, pointing at `hooks/fleet-permission-approval-hook.cjs` — a standalone, zero-dependency script. It is **opt-in per session**: inert unless the session env carries `FLEET_REMOTE_APPROVE=on` (supervised launches inject it; terminals opt in with an env prefix). On top of the opt-in marker, the hook only intercepts **ask-modes** (`default`/`plan`) — any auto mode (`acceptEdits`, `bypassPermissions`, the CLI's `auto`, or an unknown future mode) is left alone, so an opted-in session the user runs in auto is never dragged into a dashboard wait (and an auto-accepted edit can never freeze on one). Lesson from the field that shaped this: the desktop app's "auto" is `acceptEdits`, not `bypassPermissions` — an earlier version that keyed off a narrow mode blocklist froze auto sessions, so both the activation marker and the ask-mode filter are allowlists that fail open to *no* interception.
 
 ```
 Claude Code session (supervised launch, or FLEET_REMOTE_APPROVE=on terminal)
   └─ PreToolUse hook
-       ├─ env FLEET_REMOTE_APPROVE ≠ 'on' or bypassPermissions → exit 0 (inert)
+       ├─ env FLEET_REMOTE_APPROVE ≠ 'on', or mode isn't default/plan → exit 0 (inert)
        ├─ POST /api/permissions/request  (300ms-ish fail-open if server absent)
        └─ long-poll GET /api/permissions/:id/decision  (204 → re-poll forever)
 Fleet server (server/src/domain/permission-request-broker.ts)
@@ -66,6 +66,8 @@ Fleet server (server/src/domain/permission-request-broker.ts)
 Safety properties, each pinned by `test/server/remote-permission-approval-flow.test.js` and the phase-1 spike: fail-open when the server is down; auto sessions never intercepted; only the token-guarded answer click authorizes execution; installer backs up `settings.json` and `npm run uninstall-hook` restores. Supervised launches (`--permission-mode default` instead of bypass) reuse this exact path, and the idle reaper holds off while a request is pending.
 
 **Making opt-in less tedious.** `npm run enable-terminal-approve` (`scripts/enable-terminal-remote-approve.cjs`) writes a marked `export FLEET_REMOTE_APPROVE=on` block into the shell profile so every new terminal `claude` opts in without the prefix — terminal-only on purpose, since GUI/Dock desktop launches don't source the profile and so stay safe from the freeze. It can't upgrade an already-running session (the env is fixed at process start), so for external sessions that aren't opted in, the session timeline renders a one-line hint explaining how to opt in (`FLEET_REMOTE_APPROVE=on claude --resume <id>`) rather than silently showing no buttons.
+
+**Dashboard-vs-terminal toggle.** A header switch, held in-memory on the server and flipped through the token-guarded `POST /api/permissions/mode` (broadcast to every dashboard via the `permission-mode` SSE event), decides where an opted-in *terminal* session's prompt lands. When it is off, `POST /api/permissions/request` answers external sessions with `{ passthrough: true }` — no `requestId`, so the hook (unchanged) falls through to the CLI's own prompt in that terminal. Launched sessions are exempt (`launched.get(sessionId)`): with no terminal to fall back to, they always register on the board. A single tool call still resolves in exactly one place — the CLI reads its permission decision from one source — so the toggle chooses the surface rather than duplicating it.
 
 ## Data model sketch
 

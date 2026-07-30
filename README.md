@@ -110,10 +110,12 @@ The hook is **strictly opt-in per session** — installed globally but inert unl
 
 External sessions that aren't opted in still show up on the board read-only; their timeline shows a one-line hint on how to opt in (restart with the env marker) instead of leaving you guessing why there are no Allow/Deny buttons.
 
+**Answer here or at the terminal — a header toggle, not a re-launch.** The **🔐 Dashboard / Terminal** switch in the header flips where opted-in *terminal* sessions' prompts land: **Dashboard** (default) keeps them on the board; **Terminal** sends them back to each session's own window for a native y/n. Flip it to Terminal while you're at the keyboard, back to Dashboard when you step away — no need to un-opt-in or restart anything. (A single permission can only be answered in one place — Claude Code takes the decision from one source — so this picks *which* place, live.) Dashboard-launched sessions ignore the toggle: they have no terminal, so the board stays their only surface.
+
 How it stays safe:
 
 - **Fail-open, always.** The hook gives up in <300ms if the dashboard isn't running — the session's own prompt appears exactly as before. A dead dashboard can never freeze a session.
-- **Auto stays auto.** `bypassPermissions` sessions skip the hook even when opted in.
+- **Auto stays auto.** Only `default`/`plan` sessions are intercepted; any auto mode (`acceptEdits`, `bypassPermissions`, the CLI's `auto`) skips the hook even when opted in, so an auto session is never dragged into a dashboard wait.
 - **The Allow click is the authority.** Registering a request grants nothing; the answer endpoint sits behind the same anti-CSRF token as launching.
 
 Trade-offs you accept for an opted-in session: while a request waits, the session sits silent in its own window (the dashboard notification is your signal — waits are indefinite by design), and the hook fires before allowlist evaluation, so even allowlisted commands wait for your click.

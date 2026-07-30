@@ -178,3 +178,38 @@ test('hook-status endpoint reports installed=false against an empty settings fil
     assert.equal(typeof json(res.body)?.installed, 'boolean');
   });
 });
+
+test('approval toggle: defaults on, guarded, and routes external asks to the terminal when off', async () => {
+  await withServer(async ({ port }) => {
+    // Default = on.
+    assert.equal(json((await rawRequest(port, '/api/permissions/mode')).body)?.enabled, true);
+    // Flip requires the mutation token.
+    assert.equal((await postJson(port, '/api/permissions/mode', { enabled: false })).status, 403);
+    // Bad payload rejected.
+    assert.equal((await postJson(port, '/api/permissions/mode', { enabled: 'no' }, { 'x-fleet-token': TOKEN })).status, 400);
+    // Flip off with the token.
+    const off = await postJson(port, '/api/permissions/mode', { enabled: false }, { 'x-fleet-token': TOKEN });
+    assert.equal(json(off.body)?.enabled, false);
+    // An external session's request now passes through (no requestId → hook
+    // fails open to the native terminal prompt) instead of registering a card.
+    const passed = await postJson(port, '/api/permissions/request', { sessionId: 'ext-sess', toolName: 'Bash' }, { 'content-type': 'application/json' });
+    assert.equal(passed.status, 200);
+    assert.equal(json(passed.body)?.passthrough, true);
+    assert.equal(json(passed.body)?.requestId, undefined);
+    // Flip back on → a real request registers again.
+    await postJson(port, '/api/permissions/mode', { enabled: true }, { 'x-fleet-token': TOKEN });
+    const registered = await postJson(port, '/api/permissions/request', { sessionId: 'ext-sess', toolName: 'Bash' }, { 'content-type': 'application/json' });
+    assert.equal(typeof json(registered.body)?.requestId, 'string');
+  });
+});
+
+test('approval toggle off still routes the REAL hook to a decision-less exit (terminal fallback)', async () => {
+  await withServer(async ({ port, server }) => {
+    server.port = port;
+    await postJson(port, '/api/permissions/mode', { enabled: false }, { 'x-fleet-token': TOKEN });
+    const baseUrl = `http://127.0.0.1:${port}`;
+    const out = await runHook(baseUrl, { ...HOOK_INPUT, session_id: 'ext-hook-sess' });
+    assert.equal(out.code, 0);
+    assert.equal(out.stdout.trim(), ''); // no decision emitted → CLI shows its own prompt
+  });
+});

@@ -20,7 +20,9 @@ export type SseEvent =
   | { type: 'loop-job'; data: LoopJob }
   /** One projected workflow run changed (debounced per run). */
   | { type: 'workflow'; data: WorkflowRun }
-  | { type: 'workflow-removed'; data: { sessionId: string } };
+  | { type: 'workflow-removed'; data: { sessionId: string } }
+  /** The dashboard-vs-terminal approval toggle flipped (live across dashboards). */
+  | { type: 'permission-mode'; data: { enabled: boolean } };
 
 export type SseEventName = SseEvent['type'];
 
