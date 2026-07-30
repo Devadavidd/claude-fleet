@@ -44,6 +44,27 @@ Everything that can spawn a process is opt-in and layered:
 
 The honest caveat, stated in the UI too: launched agents run with permissions auto-approved inside your chosen roots. The allowlist is the security boundary — pick it like one.
 
+## Remote permission approval (opt-in hook)
+
+`npm run install-hook` merges a `PreToolUse` entry (matcher `Bash|Edit|Write|MultiEdit|NotebookEdit`) into `~/.claude/settings.json`, pointing at `hooks/fleet-permission-approval-hook.cjs` — a standalone, zero-dependency script. It is **opt-in per session**: inert unless the session env carries `FLEET_REMOTE_APPROVE=on` (supervised launches inject it; terminals opt in with an env prefix). Lesson from the field: the desktop app's "auto" mode is `acceptEdits`, not `bypassPermissions` — a mode-based blocklist froze auto sessions, so activation is an explicit allowlist marker instead.
+
+```
+Claude Code session (supervised launch, or FLEET_REMOTE_APPROVE=on terminal)
+  └─ PreToolUse hook
+       ├─ env FLEET_REMOTE_APPROVE ≠ 'on' or bypassPermissions → exit 0 (inert)
+       ├─ POST /api/permissions/request  (300ms-ish fail-open if server absent)
+       └─ long-poll GET /api/permissions/:id/decision  (204 → re-poll forever)
+Fleet server (server/src/domain/permission-request-broker.ts)
+  ├─ folds the request into the card as pendingQuestion kind:'permission'
+  │    → SSE → Allow/Deny chips on board/strip/timeline + chime/notification
+  ├─ POST /api/permissions/:id/answer (token-guarded) resolves the poll
+  ├─ transcript tool_result ('tool-result' reducer event) cancels a request
+  │    the terminal answered after a fail-open
+  └─ heartbeat sweep cancels requests whose hook process died (Ctrl+C)
+```
+
+Safety properties, each pinned by `test/server/remote-permission-approval-flow.test.js` and the phase-1 spike: fail-open when the server is down; auto sessions never intercepted; only the token-guarded answer click authorizes execution; installer backs up `settings.json` and `npm run uninstall-hook` restores. Supervised launches (`--permission-mode default` instead of bypass) reuse this exact path, and the idle reaper holds off while a request is pending.
+
 ## Data model sketch
 
 A session card is derived state: `sessionId`, project slug (from the transcript path), title (first user prompt), `status` (`working` | `waiting-for-you` | `idle`), current action (latest tool call summary), files touched, token counters and burn rate, subagent rows (`label`, `status`, current action), and the pending question (text + options) when one is open. Timeline entries map 1:1 to transcript events, with Edit/Write payloads rendered as diffs and Bash outputs ANSI-parsed into terminal blocks (progress-bar `\r` churn collapsed).

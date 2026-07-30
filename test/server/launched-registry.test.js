@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { LaunchedRegistry, reapOrphans } from '../../dist/server/launch/launched-registry.js';
+import { LaunchedRegistry, reapOrphans, isOurLaunchCommandLine } from '../../dist/server/launch/launched-registry.js';
 
 const tmp = (name) => path.join(os.tmpdir(), `fleet-test-${process.pid}-${name}.json`);
 
@@ -127,5 +127,34 @@ test('touch resets the idle timer, preventing a premature kill', async () => {
   await new Promise((res) => setTimeout(res, 30));
   assert.equal(killed, false);                      // 60ms elapsed but timer reset at 30
   await new Promise((res) => setTimeout(res, 45));
+  assert.equal(killed, true);
+});
+
+test('orphan-reaper classifier: our launches only, never the interactive CLI', () => {
+  // Real ps command lines captured in the phase-1 spike.
+  const auto = 'claude -p --input-format stream-json --output-format stream-json --permission-mode bypassPermissions --session-id x --model haiku';
+  const supervised = 'claude -p --input-format stream-json --output-format stream-json --permission-mode default --model haiku --max-turns 1';
+  const interactiveCli = 'claude';
+  const interactiveDefaultMode = 'claude --permission-mode default'; // user's own terminal session
+  const dashboard = 'node dist/server/main.js';
+  assert.equal(isOurLaunchCommandLine(auto), true);
+  assert.equal(isOurLaunchCommandLine(supervised), true);
+  assert.equal(isOurLaunchCommandLine(interactiveCli), false);
+  assert.equal(isOurLaunchCommandLine(interactiveDefaultMode), false); // no stream-json → not ours
+  assert.equal(isOurLaunchCommandLine(dashboard), false);
+});
+
+test('holdIdle suspends idle-kill while a permission decision is pending', async () => {
+  const r = new LaunchedRegistry({ idleKillMs: 25 });
+  let killed = false;
+  r.register('s1', { pid: 999999999, child: { kill: () => { killed = true; } }, cwd: '/x', steerable: true });
+  r.holdIdle('s1');
+  await new Promise((res) => setTimeout(res, 70));
+  assert.equal(killed, false);                      // held → survives well past the window
+  r.touch('s1');                                    // activity during hold must not re-arm
+  await new Promise((res) => setTimeout(res, 40));
+  assert.equal(killed, false);
+  r.releaseIdle('s1');                              // decision arrived → clock restarts
+  await new Promise((res) => setTimeout(res, 70));
   assert.equal(killed, true);
 });

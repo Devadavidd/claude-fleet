@@ -29,6 +29,16 @@ Launching is **disabled until `FLEET_ALLOWED_ROOTS` is set** — that's the mast
 
 Related state files (created automatically, owner-only permissions): `~/.claude-fleet/launched-<port>.json` (pid tracking for crash-safe orphan reaping), `uploads-<port>/` (composer attachments), `hidden-sessions-<port>.json` (board hide list).
 
+## Remote permission approval
+
+Opt-in via `npm run install-hook` (see the README section); `npm run uninstall-hook` reverts. Environment knobs read by the hook script (not the server):
+
+| Var | Default | Meaning |
+|-----|---------|---------|
+| `FLEET_REMOTE_APPROVE` | *(unset — hook inert)* | **Opt-in marker.** Set to exactly `on` in a session's environment to route its permission prompts to the dashboard (`FLEET_REMOTE_APPROVE=on claude`). Supervised dashboard launches inject it automatically. Any other value (or absence) leaves the session untouched. |
+| `FLEET_URL` | `http://127.0.0.1:4600` | Where the hook reaches the dashboard. Set it if you changed `FLEET_PORT` (supervised launches get the right port injected automatically). |
+| `FLEET_CLAUDE_SETTINGS` | `~/.claude/settings.json` | Settings file the installer edits and the hook-status endpoint reads — override for testing only. |
+
 ## Always-on loop jobs
 
 Requires `FLEET_ALLOWED_ROOTS`. A supervisor relaunches a fresh headless agent each cycle; these are the brakes:

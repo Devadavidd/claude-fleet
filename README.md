@@ -94,6 +94,28 @@ A workflow that works well on a Claude subscription:
 
 More detail in [docs/how-it-works.md](docs/how-it-works.md).
 
+## Remote permission approval (opt-in)
+
+Sessions that **opt in** get their *"Allow Bash to run …?"* prompts on the dashboard instead of their own window: the card flips to **Waiting for you** with the exact command and ✅ Allow / ❌ Deny buttons (board, NeedsYouStrip, and session timeline), plus the usual ding + desktop notification. Clicking Allow runs the tool in the original session.
+
+```bash
+npm run install-hook     # one-time; backs up ~/.claude/settings.json, npm run uninstall-hook reverts
+```
+
+The hook is **strictly opt-in per session** — installed globally but inert unless a session's environment carries `FLEET_REMOTE_APPROVE=on`:
+
+- **Supervised launches opt in automatically:** tick *"🔐 Ask before running tools"* in the Launch dialog — every risky tool call comes back to you as Allow/Deny, and the idle reaper leaves the session alone while it waits.
+- **Terminal sessions opt in explicitly:** `FLEET_REMOTE_APPROVE=on claude`
+- **Everything else — the desktop app, your everyday terminal sessions — is never touched.** No env marker, no interception, no surprise waits.
+
+How it stays safe:
+
+- **Fail-open, always.** The hook gives up in <300ms if the dashboard isn't running — the session's own prompt appears exactly as before. A dead dashboard can never freeze a session.
+- **Auto stays auto.** `bypassPermissions` sessions skip the hook even when opted in.
+- **The Allow click is the authority.** Registering a request grants nothing; the answer endpoint sits behind the same anti-CSRF token as launching.
+
+Trade-offs you accept for an opted-in session: while a request waits, the session sits silent in its own window (the dashboard notification is your signal — waits are indefinite by design), and the hook fires before allowlist evaluation, so even allowlisted commands wait for your click.
+
 ## Skills catalog
 
 The Skills view and the composer's `/` menu read from a local skill bundle if present (`cf-plugin/` — not included in this repo), otherwise from `~/.claude/skills` and `~/.claude/agents` — so your existing Claude Code skills show up with no setup. See [docs/getting-started.md](docs/getting-started.md#skills-catalog).

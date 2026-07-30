@@ -14,12 +14,14 @@ export interface PendingQuestionItem {
   options: string[];
 }
 
-/** Unanswered AskUserQuestion / ExitPlanMode blocking the session. */
+/** Unanswered AskUserQuestion / ExitPlanMode / permission prompt blocking the session. */
 export interface PendingQuestion {
   toolUseId: string;
-  kind: 'question' | 'plan';
+  kind: 'question' | 'plan' | 'permission';
   askedAt: number;
   questions: PendingQuestionItem[];
+  /** Permission kind only: broker request id the Allow/Deny answer targets. */
+  requestId?: string;
 }
 
 /** Live subagent worker row under a session card. */

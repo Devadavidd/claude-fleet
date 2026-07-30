@@ -10,6 +10,7 @@
 <script lang="ts">
   import { fleetStore } from '../fleet-store.svelte.js';
   import TimelineEntry from './TimelineEntry.svelte';
+  import QuestionChips from './QuestionChips.svelte';
   import type { TranscriptEntry, TimelineResponse } from '../../../../shared/types/index.js';
 
   interface Props {
@@ -129,6 +130,44 @@
     }
     return map;
   });
+
+  // A pending permission request blocks the session on its LAST tool call, so
+  // the Allow/Deny banner belongs at the timeline's bottom — directly under the
+  // stalled tool_use in the bottom-pinned view. Lead timeline only (the request
+  // always belongs to the session card, not a worker transcript).
+  const permissionCard = $derived.by(() => {
+    if (agentId) return null;
+    const card = fleetStore.sessions.get(sessionId);
+    return card?.pendingQuestion?.kind === 'permission' ? card : null;
+  });
+
+  // Opt-in nudge: an EXTERNAL session (terminal / desktop app — not a dashboard
+  // launch) can't be approved from here unless it opted in. Its permission
+  // prompts stay in its own window, so the timeline shows no answer buttons —
+  // which is confusing without explanation. Show a one-line hint (dismissible)
+  // only when it can actually help: hook installed, session external, and no
+  // permission currently pending (a pending one proves it already opted in).
+  let hookInstalled = $state<boolean | null>(null);
+  let hintDismissed = $state(
+    typeof localStorage !== 'undefined' && localStorage.getItem('fleet-hide-optin-hint') === '1',
+  );
+  $effect(() => {
+    void (async () => {
+      try {
+        const res = await fetch('/api/permissions/hook-status');
+        if (res.ok) hookInstalled = Boolean(((await res.json()) as { installed?: unknown })?.installed);
+      } catch { /* unknown → hint stays hidden */ }
+    })();
+  });
+  const showOptInHint = $derived.by(() => {
+    if (agentId || hintDismissed || hookInstalled !== true) return false;
+    const card = fleetStore.sessions.get(sessionId);
+    return card !== undefined && card.launched !== true && card.pendingQuestion?.kind !== 'permission';
+  });
+  function dismissHint(): void {
+    hintDismissed = true;
+    try { localStorage.setItem('fleet-hide-optin-hint', '1'); } catch { /* private mode — session-only */ }
+  }
 </script>
 
 <div class="p-4 flex flex-col" data-testid="session-timeline">
@@ -145,6 +184,24 @@
     {#each displayRows as row (row.idx)}
       <TimelineEntry entry={row.entry} {toolMeta} {agentIdByToolUseId} {sessionId} />
     {/each}
+  {/if}
+  {#if permissionCard}
+    <div class="mt-2" data-testid="timeline-permission-banner">
+      <QuestionChips card={permissionCard} />
+    </div>
+  {:else if showOptInHint}
+    <div
+      class="mt-2 flex items-start gap-2 text-[11px] text-fleet-dim bg-fleet-panel/60 border border-fleet-border rounded-lg px-3 py-2"
+      data-testid="timeline-optin-hint"
+    >
+      <span class="flex-none">🔐</span>
+      <span class="flex-1 leading-relaxed">
+        This session runs outside the dashboard, so its permission prompts stay in its own window.
+        To answer them here, restart it with
+        <code class="text-fleet-accent">FLEET_REMOTE_APPROVE=on claude --resume {sessionId}</code>.
+      </span>
+      <button type="button" onclick={dismissHint} aria-label="Dismiss hint" class="flex-none text-fleet-faint hover:text-fleet-text cursor-pointer">✕</button>
+    </div>
   {/if}
   <div bind:this={bottomEl} aria-hidden="true"></div>
 </div>

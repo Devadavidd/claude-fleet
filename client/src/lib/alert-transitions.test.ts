@@ -17,6 +17,18 @@ test('question appearing while already waiting chimes with the question tone', (
   expect(alertKindFor('done', 'question')).toBe('question'); // the exact reported bug
 });
 
+test('permission requests collapse to their own key and chime on entry', () => {
+  expect(alertKeyFor({ status: 'waiting-for-you', pendingQuestion: { kind: 'permission', questions: [{}] } }))
+    .toBe('permission');
+  // Non-permission kinds keep collapsing to 'question'.
+  expect(alertKeyFor({ status: 'waiting-for-you', pendingQuestion: { kind: 'plan', questions: [{}] } }))
+    .toBe('question');
+  expect(alertKindFor('quiet', 'permission')).toBe('permission');
+  expect(alertKindFor('permission', 'permission')).toBeNull(); // no re-chime while pending
+  expect(alertKindFor('permission', 'quiet')).toBeNull();      // answered → back to work
+  expect(alertKindFor('permission', 'done')).toBe('done');     // resolved, turn then ended
+});
+
 test('entering waiting from working chimes by kind', () => {
   expect(alertKindFor('quiet', 'done')).toBe('done');
   expect(alertKindFor('quiet', 'question')).toBe('question');

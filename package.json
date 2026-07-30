@@ -15,6 +15,10 @@
     "build:client": "vite build",
     "build:server": "tsc -p tsconfig.server.json",
     "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.client.json",
+    "install-hook": "node scripts/install-fleet-permission-hook.cjs",
+    "uninstall-hook": "node scripts/install-fleet-permission-hook.cjs --uninstall",
+    "enable-terminal-approve": "node scripts/enable-terminal-remote-approve.cjs",
+    "disable-terminal-approve": "node scripts/enable-terminal-remote-approve.cjs --disable",
     "test": "npm run typecheck && npm run build:server && node --test test/server/ && vitest run --config client/vitest.config.ts"
   },
   "dependencies": {

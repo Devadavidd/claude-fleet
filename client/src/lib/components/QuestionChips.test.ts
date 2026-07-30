@@ -69,6 +69,42 @@ test('single-select chip click POSTs the answer immediately', async () => {
   expect(steerBody(fetchMock)).toEqual({ type: 'answer', selections: ['B'] });
 });
 
+test('permission request shows Allow/Deny and answers via the broker endpoint', async () => {
+  const fetchMock = stubSteer();
+  // Even a launched-but-unsteerable card is answerable for permissions — the
+  // channel is the blocked hook, not stdin.
+  const card = makeCard({ launched: true, steerable: false });
+  card.pendingQuestion = {
+    toolUseId: 'tu-9',
+    kind: 'permission',
+    requestId: 'req-42',
+    askedAt: 0,
+    questions: [{ header: 'Permission: Bash', question: '$ npm test', multiSelect: false, options: ['Allow', 'Deny'] }],
+  };
+  render(QuestionChips, { card });
+  expect(screen.getByTestId('question-chips')).toHaveTextContent('asking permission');
+  await fireEvent.click(screen.getByRole('button', { name: 'Allow' }));
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  expect(String(fetchMock.mock.calls[0][0])).toBe('/api/permissions/req-42/answer');
+  expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toEqual({ decision: 'allow' });
+});
+
+test('permission Deny sends decision deny', async () => {
+  const fetchMock = stubSteer();
+  const card = makeCard();
+  card.pendingQuestion = {
+    toolUseId: 'tu-9',
+    kind: 'permission',
+    requestId: 'req-42',
+    askedAt: 0,
+    questions: [{ header: 'Permission: Bash', question: '$ rm -rf x', multiSelect: false, options: ['Allow', 'Deny'] }],
+  };
+  render(QuestionChips, { card });
+  await fireEvent.click(screen.getByRole('button', { name: 'Deny' }));
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toEqual({ decision: 'deny' });
+});
+
 test('multiSelect toggles chips and sends the whole selection on Answer', async () => {
   const fetchMock = stubSteer();
   const card = makeCard({ launched: true, steerable: true });
