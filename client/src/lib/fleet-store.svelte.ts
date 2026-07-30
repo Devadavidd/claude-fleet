@@ -18,6 +18,7 @@ import type {
 const EVENT_NAMES: SseEventName[] = [
   'snapshot', 'session', 'session-removed', 'loop-job',
   'wiki-updated', 'overview-updated', 'workflow', 'workflow-removed',
+  'permission-mode',
 ];
 
 const workflowKey = (sessionId: string, workflowId: string) => `${sessionId}:${workflowId}`;
@@ -30,6 +31,10 @@ export class FleetStore {
   /** Bumped on the matching SSE event so the Shipped / Overview views refetch. */
   wikiVersion = $state(0);
   overviewVersion = $state(0);
+
+  /** Dashboard-vs-terminal approval toggle. true = opted-in terminal prompts
+   * land on this dashboard; false = they stay in their own terminal window. */
+  remoteApprovalEnabled = $state(true);
 
   #es: EventSource | null = null;
 
@@ -46,6 +51,11 @@ export class FleetStore {
       });
     }
     this.#es = es;
+    // Seed the approval toggle from the server; live flips arrive over SSE.
+    void fetch('/api/permissions/mode')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d && typeof d.enabled === 'boolean') this.remoteApprovalEnabled = d.enabled; })
+      .catch(() => { /* keep default on */ });
   }
 
   destroyFleet(): void {
@@ -83,6 +93,7 @@ export class FleetStore {
       case 'workflow-removed': return this.#removeWorkflows((data as { sessionId: string }).sessionId);
       case 'wiki-updated': this.wikiVersion += 1; return;
       case 'overview-updated': this.overviewVersion += 1; return;
+      case 'permission-mode': this.remoteApprovalEnabled = (data as { enabled: boolean }).enabled; return;
     }
   }
 

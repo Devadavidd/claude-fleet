@@ -99,6 +99,11 @@ export class SseServer {
   readonly clients: Set<ServerResponse>;
   readonly launched: LaunchedRegistry;
   readonly permissions: PermissionRequestBroker;
+  // Runtime toggle: when off, permission asks from EXTERNAL (terminal) sessions
+  // are sent back to their own window instead of the dashboard — the user is at
+  // the keyboard and wants the native y/n. Launched sessions ignore it (they
+  // have no terminal, so the dashboard is their only surface). Default on.
+  #remoteApproval = true;
   readonly supervisor: LoopSupervisor;
   readonly skillInstalls: SkillInstallService;
   // Serialize bundle syncs: a second POST while one runs gets a 409 instead of
@@ -524,6 +529,21 @@ export class SseServer {
       if (url.pathname === '/api/permissions/hook-status') {
         return sendJson(res, 200, { installed: fleetHookInstalled() });
       }
+      // Read the dashboard-vs-terminal approval toggle (same-origin GET).
+      if (url.pathname === '/api/permissions/mode' && req.method === 'GET') {
+        return sendJson(res, 200, { enabled: this.#remoteApproval });
+      }
+      // Flip the toggle (token-guarded — it changes where every opted-in
+      // terminal session's prompts land). Broadcast so all dashboards agree.
+      if (url.pathname === '/api/permissions/mode' && req.method === 'POST') {
+        const gate = requireMutation(req, this.fleetToken, { host: this.host, port: this.port });
+        if (!gate.ok) return sendJson(res, gate.status, { error: gate.error });
+        const body = (await readJsonBody(req)) as { enabled?: unknown } | null;
+        if (typeof body?.enabled !== 'boolean') return sendJson(res, 400, { error: 'enabled must be boolean' });
+        this.#remoteApproval = body.enabled;
+        this.#broadcastEvent({ type: 'permission-mode', data: { enabled: this.#remoteApproval } });
+        return sendJson(res, 200, { enabled: this.#remoteApproval });
+      }
       // Hook side: register a blocked tool call. No token (the standalone hook
       // can't hold one) and no authority granted — only the ANSWER authorizes
       // execution. But REQUIRE application/json: a hostile web page's simple
@@ -537,6 +557,12 @@ export class SseServer {
         const body = (await readJsonBody(req)) as Record<string, unknown> | null;
         if (!body || typeof body.sessionId !== 'string' || !body.sessionId) {
           return sendJson(res, 400, { error: 'sessionId required' });
+        }
+        // Toggle off → external session answers in its own terminal (no
+        // requestId ⇒ the hook fails open to the native prompt). A launched
+        // session has no terminal, so it always routes to the dashboard.
+        if (!this.#remoteApproval && !this.launched.get(body.sessionId)) {
+          return sendJson(res, 200, { passthrough: true });
         }
         const registered = this.permissions.request({
           sessionId: body.sessionId,
@@ -888,6 +914,7 @@ export class SseServer {
       case 'loop-job':
       case 'workflow':
       case 'workflow-removed':
+      case 'permission-mode':
         for (const client of this.clients) writeSse(client, event.type, event.data);
         return;
       default: {

@@ -9,6 +9,8 @@
   import { router, navigate } from '../router.svelte.js';
   import { unlockAudio } from '../audio.js';
   import { readThemePref, resolveTheme, setThemePref } from '../theme.svelte.js';
+  import { fleetStore } from '../fleet-store.svelte.js';
+  import { fleetMutate } from '../auth.js';
 
   interface Props {
     title: string;
@@ -44,6 +46,26 @@
   }
 
   let alertsOn = $state(readAlertPref());
+
+  // Approval routing toggle: ON = opted-in terminal prompts land on this
+  // dashboard; OFF = they stay in their own terminal (native y/n). Optimistic
+  // flip; the server broadcasts the truth back over SSE.
+  const approvalOn = $derived(fleetStore.remoteApprovalEnabled);
+  let approvalBusy = $state(false);
+  async function toggleApproval(): Promise<void> {
+    if (approvalBusy) return;
+    approvalBusy = true;
+    const next = !fleetStore.remoteApprovalEnabled;
+    fleetStore.remoteApprovalEnabled = next; // optimistic
+    try {
+      const res = await fleetMutate('/api/permissions/mode', { enabled: next });
+      if (!res.ok) fleetStore.remoteApprovalEnabled = !next; // revert on refusal
+    } catch {
+      fleetStore.remoteApprovalEnabled = !next;
+    } finally {
+      approvalBusy = false;
+    }
+  }
 
   async function toggleBell(): Promise<void> {
     if (alertsOn) {
@@ -106,6 +128,20 @@
         <!-- Moon: currently dark, click to go light -->
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.2 9.6A5.4 5.4 0 0 1 6.4 2.8a5.4 5.4 0 1 0 6.8 6.8Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
       {/if}
+    </button>
+    <button
+      type="button"
+      onclick={toggleApproval}
+      disabled={approvalBusy}
+      title={approvalOn
+        ? 'Approvals routed here. Click to send opted-in terminal prompts back to their own terminal (answer y/n there).'
+        : 'Approvals go to each session’s terminal. Click to route opted-in terminal prompts to this dashboard.'}
+      aria-pressed={approvalOn}
+      data-testid="approval-toggle"
+      class={`flex items-center gap-1.5 h-9 rounded-lg border px-2.5 text-[11.5px] font-medium flex-none cursor-pointer disabled:opacity-60 ${approvalOn ? 'border-fleet-accent text-fleet-accent bg-fleet-accent/10' : 'border-fleet-border-strong text-fleet-dim bg-fleet-panel'}`}
+    >
+      <span>🔐</span>
+      <span class="whitespace-nowrap">{approvalOn ? 'Dashboard' : 'Terminal'}</span>
     </button>
     <button
       type="button"
